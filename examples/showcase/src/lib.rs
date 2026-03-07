@@ -87,7 +87,6 @@ fn build_sidebar() -> web_sys::Element {
 
     for &(id, label, href) in items {
         if href.is_empty() {
-            // Group header
             let g = el("div", "nav-group", &[]);
             let lbl = el("div", "nav-group-label", &[]);
             append_text(&lbl, id);
@@ -164,40 +163,23 @@ fn text_el(tag: &str, text: &str) -> web_sys::Element {
     e
 }
 
-fn reactive_text(parent: &web_sys::Element, s: Signal<String>) {
-    let txt = create_text_node("");
-    let tc = txt.clone();
-    create_effect(move || {
-        tc.set_text_content(Some(&s.get()));
-    });
-    parent.append_child(&txt).ok();
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. Counter
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn demo_counter() -> web_sys::Element {
     let mut count = signal(0i32);
-    let display = memo(move || format!("{}", count.get()));
 
-    let content = el("div", "col", &[]);
-    let num = el("div", "big-num", &[]);
-    reactive_text(&num, display);
-    append_node(&content, &num);
-
-    let btns = el("div", "row counter-btns", &[]);
-    let dec = text_el("button", "−");
-    add_event_listener(&dec, "click", move |_| { count -= 1; });
-    let reset = text_el("button", "Reset");
-    let c = count;
-    add_event_listener(&reset, "click", move |_| { c.set(0); });
-    let inc = text_el("button", "+");
-    add_event_listener(&inc, "click", move |_| { count += 1; });
-    append_node(&btns, &dec);
-    append_node(&btns, &reset);
-    append_node(&btns, &inc);
-    append_node(&content, &btns);
+    let content = view! {
+        <div class="col">
+            <div class="big-num">{count}</div>
+            <div class="row counter-btns">
+                <button on:click={move |_: Event| { count -= 1; }}>"−"</button>
+                <button on:click={move |_: Event| { count.set(0); }}>"Reset"</button>
+                <button on:click={move |_: Event| { count += 1; }}>"+"</button>
+            </div>
+        </div>
+    };
 
     section("Counter", "🔢", "Fine-grained signals with automatic dependency tracking.",
         &[("Signal", "signal"), ("Effect", "signal"), ("Events", "dom")], content)
@@ -211,60 +193,31 @@ fn demo_temperature() -> web_sys::Element {
     let celsius = signal("0".to_string());
     let fahrenheit = signal("32".to_string());
 
-    let content = el("div", "col", &[]);
-
-    // Celsius row
-    let r1 = el("div", "temp-row", &[]);
-    append_node(&r1, &text_el("label", "Celsius"));
-    let c_input = create_element("input");
-    set_attribute(&c_input, "type", "number");
-    set_attribute(&c_input, "value", "0");
-    let f_sig = fahrenheit;
-    let c_sig = celsius;
-    let c_inp = c_input.clone();
-    add_event_listener(&c_input, "input", move |e| {
-        let v = event_target_value(&e);
-        c_sig.set(v.clone());
-        if let Ok(c) = v.parse::<f64>() {
-            let f = c * 9.0 / 5.0 + 32.0;
-            f_sig.set(format!("{:.1}", f));
-        }
-    });
-    append_node(&r1, &c_input);
-    append_node(&content, &r1);
-
-    // Fahrenheit row
-    let r2 = el("div", "temp-row", &[]);
-    append_node(&r2, &text_el("label", "Fahrenheit"));
-    let f_input = create_element("input");
-    set_attribute(&f_input, "type", "number");
-    set_attribute(&f_input, "value", "32");
-    let f_inp = f_input.clone();
-    let c_sig2 = celsius;
-    let f_sig2 = fahrenheit;
-    add_event_listener(&f_input, "input", move |e| {
-        let v = event_target_value(&e);
-        f_sig2.set(v.clone());
-        if let Ok(f) = v.parse::<f64>() {
-            let c = (f - 32.0) * 5.0 / 9.0;
-            c_sig2.set(format!("{:.1}", c));
-        }
-    });
-    append_node(&r2, &f_input);
-    append_node(&content, &r2);
-
-    // Sync inputs from signals
-    let c_inp2 = c_inp.clone();
-    create_effect(move || {
-        set_property(&c_inp2, "value", &JsValue::from_str(&celsius.get()));
-    });
-    let f_inp2 = f_inp.clone();
-    create_effect(move || {
-        set_property(&f_inp2, "value", &JsValue::from_str(&fahrenheit.get()));
-    });
+    let content = view! {
+        <div class="col">
+            <div class="temp-row">
+                <label>"Celsius"</label>
+                <input type="number" bind:value={celsius}
+                    on:input={move |e: Event| {
+                        if let Ok(c) = event_target_value(&e).parse::<f64>() {
+                            fahrenheit.set(format!("{:.1}", c * 9.0 / 5.0 + 32.0));
+                        }
+                    }} />
+            </div>
+            <div class="temp-row">
+                <label>"Fahrenheit"</label>
+                <input type="number" bind:value={fahrenheit}
+                    on:input={move |e: Event| {
+                        if let Ok(f) = event_target_value(&e).parse::<f64>() {
+                            celsius.set(format!("{:.1}", (f - 32.0) * 5.0 / 9.0));
+                        }
+                    }} />
+            </div>
+        </div>
+    };
 
     section("Temperature Converter", "🌡️", "Bidirectional data flow between two signals.",
-        &[("Signal", "signal"), ("memo", "signal"), ("Input", "dom")], content)
+        &[("bind:value", "signal"), ("Events", "dom"), ("Input", "dom")], content)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -288,42 +241,30 @@ fn demo_todo() -> web_sys::Element {
 
     let content = el("div", "col", &[]);
 
-    // Input row
-    let input_row = el("div", "todo-input-row", &[]);
-    let input = create_element("input");
-    set_attribute(&input, "type", "text");
-    set_attribute(&input, "placeholder", "What needs to be done?");
-    let iv = input_val;
-    add_event_listener(&input, "input", move |e| { iv.set(event_target_value(&e)); });
-    let input_ref = input.clone();
-    let t = todos;
-    let iv2 = input_val;
-    add_event_listener(&input, "keydown", move |e| {
-        let ke: web_sys::KeyboardEvent = e.dyn_into().unwrap();
-        if ke.key() == "Enter" {
-            let v = iv2.get();
-            if !v.trim().is_empty() {
-                t.update(|list| list.push((v, false)));
-                iv2.set(String::new());
-                set_property(&input_ref, "value", &JsValue::from_str(""));
-            }
-        }
-    });
-    let add_btn = text_el("button", "Add");
-    set_attribute(&add_btn, "class", "btn-primary");
-    let t2 = todos;
-    let iv3 = input_val;
-    let inp2 = input.clone();
-    add_event_listener(&add_btn, "click", move |_| {
-        let v = iv3.get();
-        if !v.trim().is_empty() {
-            t2.update(|list| list.push((v, false)));
-            iv3.set(String::new());
-            set_property(&inp2, "value", &JsValue::from_str(""));
-        }
-    });
-    append_node(&input_row, &input);
-    append_node(&input_row, &add_btn);
+    // Input row with bind:value
+    let input_row = view! {
+        <div class="todo-input-row">
+            <input type="text" placeholder="What needs to be done?"
+                bind:value={input_val}
+                on:keydown={move |e: Event| {
+                    let ke: web_sys::KeyboardEvent = e.dyn_into().unwrap();
+                    if ke.key() == "Enter" {
+                        let v = input_val.get();
+                        if !v.trim().is_empty() {
+                            todos.update(|list| list.push((v, false)));
+                            input_val.set(String::new());
+                        }
+                    }
+                }} />
+            <button class="btn-primary" on:click={move |_: Event| {
+                let v = input_val.get();
+                if !v.trim().is_empty() {
+                    todos.update(|list| list.push((v, false)));
+                    input_val.set(String::new());
+                }
+            }}>"Add"</button>
+        </div>
+    };
     append_node(&content, &input_row);
 
     // Filters
@@ -332,15 +273,13 @@ fn demo_todo() -> web_sys::Element {
     for (i, label) in ["All", "Active", "Done"].iter().enumerate() {
         let btn = text_el("button", label);
         set_attribute(&btn, "class", "btn-sm");
-        let f = filter;
         let idx = i as u8;
-        add_event_listener(&btn, "click", move |_| { f.set(idx); });
+        add_event_listener(&btn, "click", move |_| { filter.set(idx); });
         filter_btns.push(btn.clone());
         append_node(&filters, &btn);
     }
     append_node(&content, &filters);
 
-    // Update filter button active states
     create_effect(move || {
         let f = filter.get() as usize;
         for (i, btn) in filter_btns.iter().enumerate() {
@@ -352,53 +291,34 @@ fn demo_todo() -> web_sys::Element {
         }
     });
 
-    // List
-    let list = el("ul", "todo-list", &[]);
-    let list_ref = list.clone();
-    create_effect(move || {
-        clear_children(&list_ref);
-        let items = todos.get();
-        let f = filter.get();
-        for (i, (text, done)) in items.iter().enumerate() {
-            let show = match f {
-                1 => !done,
-                2 => *done,
-                _ => true,
-            };
-            if !show { continue; }
-            let li = el("li", if *done { "todo-item done" } else { "todo-item" }, &[]);
-
-            let cb = create_element("input");
-            set_attribute(&cb, "type", "checkbox");
-            if *done { set_property(&cb, "checked", &JsValue::TRUE); }
-            let t = todos;
-            let idx = i;
-            add_event_listener(&cb, "change", move |_| {
-                t.update(|list| { list[idx].1 = !list[idx].1; });
-            });
-            append_node(&li, &cb);
-
-            let span = text_el("span", text);
-            append_node(&li, &span);
-
-            let del = text_el("button", "✕");
-            set_attribute(&del, "class", "btn-sm btn-danger");
-            let t = todos;
-            add_event_listener(&del, "click", move |_| {
-                t.update(|list| { list.remove(idx); });
-            });
-            append_node(&li, &del);
-
-            append_node(&list_ref, &li);
-        }
-
-        // Persist
-        let serialized = serialize_todos(&todos.get());
-        local_storage_set("oxide-todos", &serialized);
-    });
+    // Todo list using {for ...} with pre-filtered data and {if ...} for checkbox state
+    let list = view! {
+        <ul class="todo-list">
+            {for (idx, text, done) in visible_todos(&todos.get(), filter.get()).into_iter() {
+                <li class="todo-item" class:done={done}>
+                    {if done {
+                        <input type="checkbox" checked="checked"
+                            on:change={move |_: Event| { todos.update(|list| { list[idx].1 = !list[idx].1; }); }} />
+                    } else {
+                        <input type="checkbox"
+                            on:change={move |_: Event| { todos.update(|list| { list[idx].1 = !list[idx].1; }); }} />
+                    }}
+                    <span>{text}</span>
+                    <button class="btn-sm btn-danger"
+                        on:click={move |_: Event| { todos.update(|list| { list.remove(idx); }); }}>"✕"</button>
+                </li>
+            }}
+        </ul>
+    };
     append_node(&content, &list);
 
-    // Count
+    // Persist on change
+    create_effect(move || {
+        let items = todos.get();
+        local_storage_set("oxide-todos", &serialize_todos(&items));
+    });
+
+    // Count display
     let count_el = el("div", "todo-count", &[]);
     let count_ref = count_el.clone();
     create_effect(move || {
@@ -409,7 +329,14 @@ fn demo_todo() -> web_sys::Element {
     append_node(&content, &count_el);
 
     section("Todo List", "✅", "Full CRUD with filtering and localStorage persistence.",
-        &[("Signal<Vec>", "signal"), ("localStorage", "api"), ("Events", "dom")], content)
+        &[("Signal<Vec>", "signal"), ("for/if", "signal"), ("Events", "dom")], content)
+}
+
+fn visible_todos(items: &[(String, bool)], f: u8) -> Vec<(usize, String, bool)> {
+    items.iter().enumerate()
+        .filter(|(_, (_, d))| match f { 1 => !d, 2 => *d, _ => true })
+        .map(|(i, (t, d))| (i, t.clone(), *d))
+        .collect()
 }
 
 fn parse_todos(s: &str) -> Vec<(String, bool)> {
@@ -440,43 +367,34 @@ fn demo_stopwatch() -> web_sys::Element {
         let centis = (ms % 1000) / 10;
         format!("{:02}:{:02}.{:02}", mins, secs, centis)
     });
-
-    let content = el("div", "col", &[]);
-    let time_el = el("div", "stopwatch-time", &[]);
-    reactive_text(&time_el, display);
-    append_node(&content, &time_el);
-
-    let btns = el("div", "stopwatch-btns", &[]);
-
-    let start_btn = text_el("button", "Start");
-    set_attribute(&start_btn, "class", "btn-primary");
-    let start_ref = start_btn.clone();
-    add_event_listener(&start_btn, "click", move |_| {
-        if running.get() {
-            clear_interval(interval_id.get());
-            running.set(false);
-            set_property(&start_ref, "textContent", &"Start".into());
-        } else {
-            let e = elapsed_ms;
-            let id = set_interval(move || { e.update(|v| *v += 10); }, 10);
-            interval_id.set(id);
-            running.set(true);
-            set_property(&start_ref, "textContent", &"Pause".into());
-        }
+    let btn_label = memo(move || {
+        if running.get() { "Pause".to_string() } else { "Start".to_string() }
     });
 
-    let reset_btn = text_el("button", "Reset");
-    let sb = start_btn.clone();
-    add_event_listener(&reset_btn, "click", move |_| {
-        clear_interval(interval_id.get());
-        running.set(false);
-        elapsed_ms.set(0);
-        set_property(&sb, "textContent", &"Start".into());
-    });
-
-    append_node(&btns, &start_btn);
-    append_node(&btns, &reset_btn);
-    append_node(&content, &btns);
+    let content = view! {
+        <div class="col">
+            <div class="stopwatch-time">{display}</div>
+            <div class="stopwatch-btns">
+                <button class="btn-primary"
+                    on:click={move |_: Event| {
+                        if running.get() {
+                            clear_interval(interval_id.get());
+                            running.set(false);
+                        } else {
+                            let e = elapsed_ms;
+                            let id = set_interval(move || { e.update(|v| *v += 10); }, 10);
+                            interval_id.set(id);
+                            running.set(true);
+                        }
+                    }}>{btn_label}</button>
+                <button on:click={move |_: Event| {
+                    clear_interval(interval_id.get());
+                    running.set(false);
+                    elapsed_ms.set(0);
+                }}>"Reset"</button>
+            </div>
+        </div>
+    };
 
     section("Stopwatch", "⏱️", "Precise timing with setInterval and formatted display.",
         &[("setInterval", "timer"), ("memo", "signal"), ("Closure", "dom")], content)
@@ -490,109 +408,59 @@ fn demo_forms() -> web_sys::Element {
     let name = signal(String::new());
     let email = signal(String::new());
     let color = signal("#f97316".to_string());
-    let range_val = signal(50u32);
+    let range_val = signal("50".to_string());
     let checked = signal(false);
     let select_val = signal("rust".to_string());
 
-    let content = el("div", "col", &[]);
-    let grid = el("div", "form-grid", &[]);
-
-    // Text input
-    let f1 = el("div", "form-field", &[]);
-    append_node(&f1, &text_el("label", "Name"));
-    let inp = create_element("input");
-    set_attribute(&inp, "type", "text");
-    set_attribute(&inp, "placeholder", "Your name");
-    let n = name;
-    add_event_listener(&inp, "input", move |e| { n.set(event_target_value(&e)); });
-    append_node(&f1, &inp);
-    append_node(&grid, &f1);
-
-    // Email input
-    let f2 = el("div", "form-field", &[]);
-    append_node(&f2, &text_el("label", "Email"));
-    let inp2 = create_element("input");
-    set_attribute(&inp2, "type", "text");
-    set_attribute(&inp2, "placeholder", "you@example.com");
-    let em = email;
-    add_event_listener(&inp2, "input", move |e| { em.set(event_target_value(&e)); });
-    append_node(&f2, &inp2);
-    append_node(&grid, &f2);
-
-    // Color picker
-    let f3 = el("div", "form-field", &[]);
-    append_node(&f3, &text_el("label", "Favorite Color"));
-    let cp = create_element("input");
-    set_attribute(&cp, "type", "color");
-    set_attribute(&cp, "value", "#f97316");
-    let c = color;
-    add_event_listener(&cp, "input", move |e| { c.set(event_target_value(&e)); });
-    append_node(&f3, &cp);
-    append_node(&grid, &f3);
-
-    // Range slider
-    let f4 = el("div", "form-field", &[]);
-    let range_label = el("label", "", &[]);
-    let range_label_ref = range_label.clone();
-    create_effect(move || {
-        range_label_ref.set_inner_html(&format!("Volume: {}", range_val.get()));
+    let output_text = memo(move || {
+        format!("{{ name: \"{}\", email: \"{}\", color: \"{}\", volume: {}, subscribed: {}, lang: \"{}\" }}",
+            name.get(), email.get(), color.get(), range_val.get(), checked.get(), select_val.get())
     });
-    append_node(&f4, &range_label);
-    let slider = create_element("input");
-    set_attribute(&slider, "type", "range");
-    set_attribute(&slider, "min", "0");
-    set_attribute(&slider, "max", "100");
-    set_attribute(&slider, "value", "50");
-    let rv = range_val;
-    add_event_listener(&slider, "input", move |e| {
-        if let Ok(v) = event_target_value(&e).parse::<u32>() { rv.set(v); }
-    });
-    append_node(&f4, &slider);
-    append_node(&grid, &f4);
 
-    // Checkbox
-    let f5 = el("div", "form-field", &[]);
-    append_node(&f5, &text_el("label", "Subscribe"));
-    let row = el("div", "row", &[]);
-    let cb = create_element("input");
-    set_attribute(&cb, "type", "checkbox");
-    let ch = checked;
-    add_event_listener(&cb, "change", move |e| { ch.set(event_target_checked(&e)); });
-    append_node(&row, &cb);
-    append_node(&row, &text_el("span", "Send me updates"));
-    append_node(&f5, &row);
-    append_node(&grid, &f5);
-
-    // Select
-    let f6 = el("div", "form-field", &[]);
-    append_node(&f6, &text_el("label", "Language"));
-    let sel = create_element("select");
-    for (val, label) in &[("rust", "Rust"), ("ts", "TypeScript"), ("go", "Go"), ("python", "Python")] {
-        let opt = create_element("option");
-        set_attribute(&opt, "value", val);
-        append_text(&opt, label);
-        append_node(&sel, &opt);
-    }
-    let sv = select_val;
-    add_event_listener(&sel, "change", move |e| { sv.set(event_target_value(&e)); });
-    append_node(&f6, &sel);
-    append_node(&grid, &f6);
-
-    append_node(&content, &grid);
-
-    // Output
-    let output = el("div", "form-output", &[]);
-    let output_ref = output.clone();
-    create_effect(move || {
-        output_ref.set_inner_html(&format!(
-            "<code>{{ name: \"{}\", email: \"{}\", color: \"{}\", volume: {}, subscribed: {}, lang: \"{}\" }}</code>",
-            name.get(), email.get(), color.get(), range_val.get(), checked.get(), select_val.get()
-        ));
-    });
-    append_node(&content, &output);
+    let content = view! {
+        <div class="col">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>"Name"</label>
+                    <input type="text" placeholder="Your name" bind:value={name} />
+                </div>
+                <div class="form-field">
+                    <label>"Email"</label>
+                    <input type="text" placeholder="you@example.com" bind:value={email} />
+                </div>
+                <div class="form-field">
+                    <label>"Favorite Color"</label>
+                    <input type="color" bind:value={color} />
+                </div>
+                <div class="form-field">
+                    <label>"Volume: " {range_val}</label>
+                    <input type="range" min="0" max="100" bind:value={range_val} />
+                </div>
+                <div class="form-field">
+                    <label>"Subscribe"</label>
+                    <div class="row">
+                        <input type="checkbox" bind:checked={checked} />
+                        <span>"Send me updates"</span>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>"Language"</label>
+                    <select on:change={move |e: Event| { select_val.set(event_target_value(&e)); }}>
+                        <option value="rust">"Rust"</option>
+                        <option value="ts">"TypeScript"</option>
+                        <option value="go">"Go"</option>
+                        <option value="python">"Python"</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-output">
+                <code>{output_text}</code>
+            </div>
+        </div>
+    };
 
     section("Form Inputs", "📝", "Every HTML input type with live reactive output.",
-        &[("Signal", "signal"), ("Input Events", "dom"), ("Forms", "api")], content)
+        &[("bind:value", "signal"), ("bind:checked", "signal"), ("Forms", "api")], content)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -603,70 +471,33 @@ fn demo_fetch() -> web_sys::Element {
     let result = signal("Click a button to fetch data.".to_string());
     let loading = signal(false);
 
-    let content = el("div", "col", &[]);
-    let btns = el("div", "row", &[]);
-
-    // Fetch joke
-    let btn1 = text_el("button", "Random Joke");
-    let r = result;
-    let l = loading;
-    add_event_listener(&btn1, "click", move |_| {
-        l.set(true);
-        r.set("Loading...".into());
-        let r = r;
-        let l = l;
+    fn do_fetch(url: &'static str, result: Signal<String>, loading: Signal<bool>) {
+        loading.set(true);
+        result.set("Loading...".into());
         wasm_bindgen_futures::spawn_local(async move {
-            match fetch_text("https://official-joke-api.appspot.com/random_joke").await {
-                Ok(text) => { r.set(text); l.set(false); }
-                Err(e) => { r.set(format!("Error: {:?}", e)); l.set(false); }
+            match fetch_text(url).await {
+                Ok(text) => { result.set(text); loading.set(false); }
+                Err(e) => { result.set(format!("Error: {:?}", e)); loading.set(false); }
             }
         });
-    });
-    append_node(&btns, &btn1);
+    }
 
-    // Fetch IP
-    let btn2 = text_el("button", "My IP Address");
-    let r2 = result;
-    let l2 = loading;
-    add_event_listener(&btn2, "click", move |_| {
-        l2.set(true);
-        r2.set("Loading...".into());
-        let r = r2;
-        let l = l2;
-        wasm_bindgen_futures::spawn_local(async move {
-            match fetch_text("https://api.ipify.org?format=json").await {
-                Ok(text) => { r.set(text); l.set(false); }
-                Err(e) => { r.set(format!("Error: {:?}", e)); l.set(false); }
-            }
-        });
-    });
-    append_node(&btns, &btn2);
-
-    // Fetch random user
-    let btn3 = text_el("button", "Random User");
-    let r3 = result;
-    let l3 = loading;
-    add_event_listener(&btn3, "click", move |_| {
-        l3.set(true);
-        r3.set("Loading...".into());
-        let r = r3;
-        let l = l3;
-        wasm_bindgen_futures::spawn_local(async move {
-            match fetch_text("https://randomuser.me/api/?results=1&noinfo").await {
-                Ok(text) => { r.set(text); l.set(false); }
-                Err(e) => { r.set(format!("Error: {:?}", e)); l.set(false); }
-            }
-        });
-    });
-    append_node(&btns, &btn3);
-    append_node(&content, &btns);
-
-    let res_el = el("div", "fetch-result", &[]);
-    let res_ref = res_el.clone();
-    create_effect(move || {
-        res_ref.set_text_content(Some(&result.get()));
-    });
-    append_node(&content, &res_el);
+    let content = view! {
+        <div class="col">
+            <div class="row">
+                <button on:click={move |_: Event| {
+                    do_fetch("https://official-joke-api.appspot.com/random_joke", result, loading);
+                }}>"Random Joke"</button>
+                <button on:click={move |_: Event| {
+                    do_fetch("https://api.ipify.org?format=json", result, loading);
+                }}>"My IP Address"</button>
+                <button on:click={move |_: Event| {
+                    do_fetch("https://randomuser.me/api/?results=1&noinfo", result, loading);
+                }}>"Random User"</button>
+            </div>
+            <div class="fetch-result">{result}</div>
+        </div>
+    };
 
     section("Fetch API", "🌐", "Asynchronous HTTP requests with loading states.",
         &[("fetch()", "api"), ("async/await", "api"), ("Signal", "signal")], content)
@@ -687,6 +518,7 @@ async fn fetch_text(url: &str) -> Result<String, JsValue> {
 fn demo_mouse() -> web_sys::Element {
     let mx = signal(0i32);
     let my = signal(0i32);
+    let coords_text = memo(move || format!("x: {} · y: {}", mx.get(), my.get()));
 
     let content = el("div", "col", &[]);
     let area = el("div", "mouse-area", &[]);
@@ -707,11 +539,7 @@ fn demo_mouse() -> web_sys::Element {
     });
     append_node(&content, &area);
 
-    let coords = el("div", "mouse-coords", &[]);
-    let coords_ref = coords.clone();
-    create_effect(move || {
-        coords_ref.set_inner_html(&format!("x: <b>{}</b> · y: <b>{}</b>", mx.get(), my.get()));
-    });
+    let coords = view! { <div class="mouse-coords">{coords_text}</div> };
     append_node(&content, &coords);
 
     section("Mouse Tracker", "🖱️", "Real-time mouse position tracking with visual feedback.",
@@ -727,29 +555,25 @@ fn demo_keyboard() -> web_sys::Element {
     let code = signal(String::new());
     let modifiers = signal(String::new());
 
-    let content = el("div", "col", &[]);
-    append_node(&content, &text_el("p", "Press any key…"));
-
-    let display = el("div", "key-display", &[]);
-    let cap = el("div", "key-cap", &[]);
-    let cap_ref = cap.clone();
-    create_effect(move || { cap_ref.set_text_content(Some(&key.get())); });
-    append_node(&display, &cap);
-    append_node(&content, &display);
-
-    let info = el("div", "key-info", &[]);
-    let info_ref = info.clone();
-    create_effect(move || {
+    let info_text = memo(move || {
         let c = code.get();
         let m = modifiers.get();
-        let txt = if c.is_empty() {
+        if c.is_empty() {
             "Waiting for input...".to_string()
         } else {
             format!("Code: {} {}", c, if m.is_empty() { String::new() } else { format!("· Modifiers: {}", m) })
-        };
-        info_ref.set_text_content(Some(&txt));
+        }
     });
-    append_node(&content, &info);
+
+    let content = view! {
+        <div class="col">
+            <p>"Press any key…"</p>
+            <div class="key-display">
+                <div class="key-cap">{key}</div>
+            </div>
+            <div class="key-info">{info_text}</div>
+        </div>
+    };
 
     on_document_event("keydown", move |e| {
         let ke: web_sys::KeyboardEvent = e.dyn_into().unwrap();
@@ -777,7 +601,6 @@ fn demo_canvas() -> web_sys::Element {
 
     let content = el("div", "col", &[]);
 
-    // Tools
     let tools = el("div", "canvas-tools", &[]);
     append_node(&tools, &text_el("label", "Color:"));
     let cp = create_element("input");
@@ -790,7 +613,7 @@ fn demo_canvas() -> web_sys::Element {
     append_node(&tools, &clear_btn);
     append_node(&content, &tools);
 
-    // Canvas
+    // Canvas requires imperative API
     let wrap = el("div", "canvas-wrap", &[]);
     let canvas: web_sys::HtmlCanvasElement = create_element("canvas").dyn_into().unwrap();
     canvas.set_width(800);
@@ -860,29 +683,26 @@ fn demo_canvas() -> web_sys::Element {
 fn demo_theme() -> web_sys::Element {
     let dark = signal(true);
 
-    let content = el("div", "col", &[]);
-    let btn = text_el("button", "Toggle Theme");
-    set_attribute(&btn, "class", "btn-primary");
-    let d = dark;
-    add_event_listener(&btn, "click", move |_| { d.set(!d.get()); });
-    append_node(&content, &btn);
-
-    let preview = el("div", "theme-preview dark", &[]);
-    let preview_ref = preview.clone();
-    create_effect(move || {
-        let is_dark = dark.get();
-        set_attribute(&preview_ref, "class",
-            if is_dark { "theme-preview dark" } else { "theme-preview light" });
-        preview_ref.set_inner_html(if is_dark {
-            "<h3>🌙 Dark Mode</h3><p>Easy on the eyes for late-night coding.</p>"
-        } else {
-            "<h3>☀️ Light Mode</h3><p>Bright and clean for daytime work.</p>"
-        });
-    });
-    append_node(&content, &preview);
+    let content = view! {
+        <div class="col">
+            <button class="btn-primary"
+                on:click={move |_: Event| { dark.set(!dark.get()); }}>
+                "Toggle Theme"
+            </button>
+            <div class="theme-preview" class:dark={dark.get()} class:light={!dark.get()}>
+                {if dark.get() {
+                    <h3>"🌙 Dark Mode"</h3>
+                    <p>"Easy on the eyes for late-night coding."</p>
+                } else {
+                    <h3>"☀️ Light Mode"</h3>
+                    <p>"Bright and clean for daytime work."</p>
+                }}
+            </div>
+        </div>
+    };
 
     section("Theme Toggle", "🎨", "Switch between dark and light themes with CSS.",
-        &[("Signal", "signal"), ("classList", "dom"), ("CSS Variables", "dom")], content)
+        &[("class:toggle", "signal"), ("if/else", "signal"), ("CSS Variables", "dom")], content)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -890,9 +710,14 @@ fn demo_theme() -> web_sys::Element {
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn demo_notes() -> web_sys::Element {
-    let saved = local_storage_get("oxide-notes").unwrap_or_else(|| "Write your notes here...\n\nThey persist across page reloads via localStorage!".into());
+    let saved = local_storage_get("oxide-notes")
+        .unwrap_or_else(|| "Write your notes here...\n\nThey persist across page reloads via localStorage!".into());
     let text = signal(saved);
     let status = signal("Saved ✓".to_string());
+
+    // Persist on every change
+    let t = text;
+    let st = status;
 
     let content = el("div", "col", &[]);
     let ta = create_element("textarea");
@@ -902,8 +727,6 @@ fn demo_notes() -> web_sys::Element {
     create_effect(move || {
         set_property(&ta_ref, "value", &JsValue::from_str(&text.get()));
     });
-    let t = text;
-    let st = status;
     add_event_listener(&ta, "input", move |e| {
         let v = event_target_value(&e);
         t.set(v.clone());
@@ -912,9 +735,7 @@ fn demo_notes() -> web_sys::Element {
     });
     append_node(&content, &ta);
 
-    let stat = el("div", "notes-status", &[]);
-    let stat_ref = stat.clone();
-    create_effect(move || { stat_ref.set_text_content(Some(&status.get())); });
+    let stat = view! { <div class="notes-status">{status}</div> };
     append_node(&content, &stat);
 
     section("Persistent Notes", "📒", "Notes that survive page reloads via localStorage.",
@@ -931,6 +752,9 @@ fn demo_animation() -> web_sys::Element {
     let y = signal(50.0f64);
     let dx = signal(2.5f64);
     let dy = signal(2.0f64);
+    let btn_label = memo(move || {
+        if running.get() { "Pause".to_string() } else { "Resume".to_string() }
+    });
 
     let content = el("div", "col", &[]);
     let stage = el("div", "anim-stage", &[]);
@@ -966,15 +790,12 @@ fn demo_animation() -> web_sys::Element {
 
     request_animation_frame(move || tick(x, y, dx, dy, running, ball_ref, stage_ref));
 
-    let btn = text_el("button", "Pause");
-    let btn_ref = btn.clone();
-    let r = running;
-    add_event_listener(&btn, "click", move |_| {
-        r.set(!r.get());
-        set_property(&btn_ref, "textContent",
-            &JsValue::from_str(if r.get() { "Pause" } else { "Resume" }));
-    });
-    append_node(&content, &btn);
+    let toggle_btn = view! {
+        <button on:click={move |_: Event| { running.set(!running.get()); }}>
+            {btn_label}
+        </button>
+    };
+    append_node(&content, &toggle_btn);
 
     section("Bouncing Ball", "🏀", "Smooth animation using requestAnimationFrame.",
         &[("rAF", "timer"), ("Signal", "signal"), ("CSS Transform", "dom")], content)
@@ -990,6 +811,7 @@ fn demo_chart() -> web_sys::Element {
 
     let content = el("div", "col", &[]);
     let chart_wrap = el("div", "chart-wrap", &[]);
+    // SVG requires createElementNS — imperative is the right approach here
     let svg = create_svg_element("svg");
     set_attribute(&svg, "viewBox", "0 0 700 220");
     set_attribute(&svg, "preserveAspectRatio", "xMidYMid meet");
@@ -1040,17 +862,16 @@ fn demo_chart() -> web_sys::Element {
     append_node(&chart_wrap, &svg);
     append_node(&content, &chart_wrap);
 
-    let btns = el("div", "chart-btns", &[]);
-    let rand_btn = text_el("button", "Randomize");
-    add_event_listener(&rand_btn, "click", move |_| {
-        d.update(|v| {
-            for val in v.iter_mut() {
-                *val = pseudo_random(*val);
-            }
-        });
-    });
-    append_node(&btns, &rand_btn);
-    append_node(&content, &btns);
+    let rand_btn = view! {
+        <div class="chart-btns">
+            <button on:click={move |_: Event| {
+                d.update(|v| {
+                    for val in v.iter_mut() { *val = pseudo_random(*val); }
+                });
+            }}>"Randomize"</button>
+        </div>
+    };
+    append_node(&content, &rand_btn);
 
     section("SVG Bar Chart", "📊", "Dynamic SVG generation with reactive data.",
         &[("SVG", "api"), ("Signal<Vec>", "signal"), ("createElementNS", "dom")], content)
@@ -1068,42 +889,29 @@ fn pseudo_random(seed: u32) -> u32 {
 fn demo_modal() -> web_sys::Element {
     let open = signal(false);
 
-    let content = el("div", "col", &[]);
-    let btn = text_el("button", "Open Modal");
-    set_attribute(&btn, "class", "btn-primary");
-    let o = open;
-    add_event_listener(&btn, "click", move |_| { o.set(true); });
-    append_node(&content, &btn);
-
-    let overlay = el("div", "overlay hidden", &[]);
-    let modal = el("div", "modal", &[]);
-    modal.set_inner_html("<h3>🔥 Oxide Modal</h3><p>This modal is rendered and controlled entirely by Rust signals compiled to WASM. No JavaScript!</p>");
-    let close_btn = text_el("button", "Close");
-    let o2 = open;
-    add_event_listener(&close_btn, "click", move |_| { o2.set(false); });
-    append_node(&modal, &close_btn);
-    append_node(&overlay, &modal);
-
-    let overlay_bg = overlay.clone();
-    let o3 = open;
-    add_event_listener(&overlay_bg, "click", move |e| {
-        let target = e.target().unwrap();
-        let el: web_sys::Element = target.dyn_into().unwrap();
-        if el.class_list().contains("overlay") { o3.set(false); }
-    });
-    append_node(&content, &overlay);
-
-    let overlay_ref = overlay.clone();
-    create_effect(move || {
-        if open.get() {
-            overlay_ref.class_list().remove_1("hidden").ok();
-        } else {
-            overlay_ref.class_list().add_1("hidden").ok();
-        }
-    });
+    let content = view! {
+        <div class="col">
+            <button class="btn-primary"
+                on:click={move |_: Event| { open.set(true); }}>
+                "Open Modal"
+            </button>
+            <div class="overlay" class:hidden={!open.get()}
+                on:click={move |e: Event| {
+                    let target = e.target().unwrap();
+                    let el: web_sys::Element = target.dyn_into().unwrap();
+                    if el.class_list().contains("overlay") { open.set(false); }
+                }}>
+                <div class="modal">
+                    <h3>"🔥 Oxide Modal"</h3>
+                    <p>"This modal is rendered and controlled entirely by Rust signals compiled to WASM. No JavaScript!"</p>
+                    <button on:click={move |_: Event| { open.set(false); }}>"Close"</button>
+                </div>
+            </div>
+        </div>
+    };
 
     section("Modal Dialog", "💬", "Overlay dialog controlled by a boolean signal.",
-        &[("Signal<bool>", "signal"), ("classList", "dom"), ("Events", "dom")], content)
+        &[("Signal<bool>", "signal"), ("class:toggle", "dom"), ("Events", "dom")], content)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1111,6 +919,7 @@ fn demo_modal() -> web_sys::Element {
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn demo_dnd() -> web_sys::Element {
+    // Drag & Drop uses DataTransfer API — needs imperative event handling
     let content = el("div", "col", &[]);
     let container = el("div", "dnd-container", &[]);
 
@@ -1175,42 +984,26 @@ fn demo_dnd() -> web_sys::Element {
 fn demo_clipboard() -> web_sys::Element {
     let copied = signal(false);
 
-    let content = el("div", "col", &[]);
-    let row = el("div", "row", &[]);
-
-    let text_div = el("div", "clip-text", &[]);
-    append_text(&text_div, "🔥 Oxide — Rust frontend framework compiling to WASM");
-    append_node(&row, &text_div);
-
-    let btn = text_el("button", "📋 Copy");
-    let c = copied;
-    add_event_listener(&btn, "click", move |_| {
-        let window = web_sys::window().unwrap();
-        let nav = window.navigator();
-        let clipboard = nav.clipboard();
-        let promise = clipboard.write_text("🔥 Oxide — Rust frontend framework compiling to WASM");
-        let c = c;
-        wasm_bindgen_futures::spawn_local(async move {
-            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-            c.set(true);
-            set_timeout(move || { c.set(false); }, 2000);
-        });
-    });
-    append_node(&row, &btn);
-
-    let toast = el("span", "clip-toast", &[]);
-    append_text(&toast, "Copied!");
-    let toast_ref = toast.clone();
-    create_effect(move || {
-        if copied.get() {
-            toast_ref.class_list().add_1("show").ok();
-        } else {
-            toast_ref.class_list().remove_1("show").ok();
-        }
-    });
-    append_node(&row, &toast);
-    append_node(&content, &row);
+    let content = view! {
+        <div class="col">
+            <div class="row">
+                <div class="clip-text">"🔥 Oxide — Rust frontend framework compiling to WASM"</div>
+                <button on:click={move |_: Event| {
+                    let window = web_sys::window().unwrap();
+                    let nav = window.navigator();
+                    let clipboard = nav.clipboard();
+                    let promise = clipboard.write_text("🔥 Oxide — Rust frontend framework compiling to WASM");
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                        copied.set(true);
+                        set_timeout(move || { copied.set(false); }, 2000);
+                    });
+                }}>"📋 Copy"</button>
+                <span class="clip-toast" class:show={copied.get()}>"Copied!"</span>
+            </div>
+        </div>
+    };
 
     section("Clipboard", "📋", "Copy text to clipboard with the async Clipboard API.",
-        &[("Clipboard API", "api"), ("async/await", "api"), ("Signal", "signal")], content)
+        &[("Clipboard API", "api"), ("async/await", "api"), ("class:toggle", "signal")], content)
 }
