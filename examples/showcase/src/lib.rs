@@ -5,111 +5,34 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Entry point
+// Entry point — mount each demo into its container on the HTML landing page
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[wasm_bindgen(start)]
 pub fn main() {
-    mount("#app", build_app);
-}
-
-fn build_app() -> web_sys::Element {
-    let shell = el("div", "shell", &[]);
-    let sidebar = build_sidebar();
-    let main = el("div", "main", &[]);
-    main.set_attribute("id", "main-content").ok();
-
-    append_node(&shell, &sidebar);
-    append_node(&shell, &main);
-
-    let sections: &[(&str, fn() -> web_sys::Element)] = &[
-        ("counter",     demo_counter),
-        ("temperature", demo_temperature),
-        ("todo",        demo_todo),
-        ("stopwatch",   demo_stopwatch),
-        ("forms",       demo_forms),
-        ("fetch",       demo_fetch),
-        ("mouse",       demo_mouse),
-        ("keyboard",    demo_keyboard),
-        ("canvas",      demo_canvas),
-        ("theme",       demo_theme),
-        ("notes",       demo_notes),
-        ("animation",   demo_animation),
-        ("chart",       demo_chart),
-        ("modal",       demo_modal),
-        ("dnd",         demo_dnd),
-        ("clipboard",   demo_clipboard),
+    let demos: &[(&str, fn() -> web_sys::Element)] = &[
+        ("demo-counter-live",     demo_counter),
+        ("demo-todo-live",        demo_todo),
+        ("demo-forms-live",       demo_forms),
+        ("demo-fetch-live",       demo_fetch),
+        ("demo-canvas-live",      demo_canvas),
+        ("demo-chart-live",       demo_chart),
+        ("demo-temperature-live", demo_temperature),
+        ("demo-stopwatch-live",   demo_stopwatch),
+        ("demo-mouse-live",       demo_mouse),
+        ("demo-keyboard-live",    demo_keyboard),
+        ("demo-theme-live",       demo_theme),
+        ("demo-notes-live",       demo_notes),
+        ("demo-animation-live",   demo_animation),
+        ("demo-modal-live",       demo_modal),
+        ("demo-dnd-live",         demo_dnd),
+        ("demo-clipboard-live",   demo_clipboard),
     ];
-
-    for &(id, builder) in sections {
-        let section = builder();
-        section.set_attribute("id", &format!("section-{}", id)).ok();
-        append_node(&main, &section);
-    }
-
-    shell
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Sidebar
-// ═══════════════════════════════════════════════════════════════════════════
-
-fn build_sidebar() -> web_sys::Element {
-    let sidebar = el("nav", "sidebar", &[]);
-
-    let title = el("div", "sidebar-title", &[]);
-    title.set_inner_html("🔥 Oxide<span>Rust → WebAssembly</span>");
-    append_node(&sidebar, &title);
-
-    let items: &[(&str, &str, &str)] = &[
-        ("Reactivity", "", ""),
-        ("counter",     "Counter",              "#section-counter"),
-        ("temperature", "Temperature",          "#section-temperature"),
-        ("todo",        "Todo List",            "#section-todo"),
-        ("stopwatch",   "Stopwatch",            "#section-stopwatch"),
-        ("Web APIs", "", ""),
-        ("forms",       "Form Inputs",          "#section-forms"),
-        ("fetch",       "Fetch API",            "#section-fetch"),
-        ("mouse",       "Mouse Tracker",        "#section-mouse"),
-        ("keyboard",    "Keyboard Events",      "#section-keyboard"),
-        ("canvas",      "Canvas Drawing",       "#section-canvas"),
-        ("Features", "", ""),
-        ("theme",       "Theme Toggle",         "#section-theme"),
-        ("notes",       "Persistent Notes",     "#section-notes"),
-        ("animation",   "Animation",            "#section-animation"),
-        ("chart",       "SVG Chart",            "#section-chart"),
-        ("modal",       "Modal Dialog",         "#section-modal"),
-        ("dnd",         "Drag & Drop",          "#section-dnd"),
-        ("clipboard",   "Clipboard",            "#section-clipboard"),
-    ];
-
-    let mut group: Option<web_sys::Element> = None;
-
-    for &(id, label, href) in items {
-        if href.is_empty() {
-            let g = el("div", "nav-group", &[]);
-            let lbl = el("div", "nav-group-label", &[]);
-            append_text(&lbl, id);
-            append_node(&g, &lbl);
-            if let Some(prev) = group.take() {
-                append_node(&sidebar, &prev);
-            }
-            group = Some(g);
-        } else {
-            let a = create_element("a");
-            set_attribute(&a, "class", "nav-link");
-            set_attribute(&a, "href", href);
-            append_text(&a, label);
-            if let Some(ref g) = group {
-                append_node(g, &a);
-            }
+    for &(id, builder) in demos {
+        if let Some(container) = query_selector(&format!("#{}", id)) {
+            container.append_child(&builder()).ok();
         }
     }
-    if let Some(g) = group {
-        append_node(&sidebar, &g);
-    }
-
-    sidebar
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -127,36 +50,6 @@ fn el(tag: &str, class: &str, children: &[&web_sys::Element]) -> web_sys::Elemen
     e
 }
 
-fn section(title: &str, icon: &str, desc: &str, tags: &[(&str, &str)], content: web_sys::Element) -> web_sys::Element {
-    let s = el("div", "section", &[]);
-
-    let h2 = create_element("h2");
-    let ic = el("span", "icon", &[]);
-    ic.set_inner_html(icon);
-    append_node(&h2, &ic);
-    append_text(&h2, title);
-    append_node(&s, &h2);
-
-    let d = el("p", "desc", &[]);
-    append_text(&d, desc);
-    append_node(&s, &d);
-
-    if !tags.is_empty() {
-        let t = el("div", "apis", &[]);
-        for &(label, kind) in tags {
-            let tag = el("span", &format!("tag {}", kind), &[]);
-            append_text(&tag, label);
-            append_node(&t, &tag);
-        }
-        append_node(&s, &t);
-    }
-
-    let card = el("div", "card", &[]);
-    append_node(&card, &content);
-    append_node(&s, &card);
-    s
-}
-
 fn text_el(tag: &str, text: &str) -> web_sys::Element {
     let e = create_element(tag);
     append_text(&e, text);
@@ -170,7 +63,7 @@ fn text_el(tag: &str, text: &str) -> web_sys::Element {
 fn demo_counter() -> web_sys::Element {
     let mut count = signal(0i32);
 
-    let content = view! {
+    view! {
         <div class="col">
             <div class="big-num">{count}</div>
             <div class="row counter-btns">
@@ -179,10 +72,7 @@ fn demo_counter() -> web_sys::Element {
                 <button on:click={move |_: Event| { count += 1; }}>"+"</button>
             </div>
         </div>
-    };
-
-    section("Counter", "🔢", "Fine-grained signals with automatic dependency tracking.",
-        &[("Signal", "signal"), ("Effect", "signal"), ("Events", "dom")], content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -193,7 +83,7 @@ fn demo_temperature() -> web_sys::Element {
     let celsius = signal("0".to_string());
     let fahrenheit = signal("32".to_string());
 
-    let content = view! {
+    view! {
         <div class="col">
             <div class="temp-row">
                 <label>"Celsius"</label>
@@ -214,10 +104,7 @@ fn demo_temperature() -> web_sys::Element {
                     }} />
             </div>
         </div>
-    };
-
-    section("Temperature Converter", "🌡️", "Bidirectional data flow between two signals.",
-        &[("bind:value", "signal"), ("Events", "dom"), ("Input", "dom")], content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -328,8 +215,7 @@ fn demo_todo() -> web_sys::Element {
     });
     append_node(&content, &count_el);
 
-    section("Todo List", "✅", "Full CRUD with filtering and localStorage persistence.",
-        &[("Signal<Vec>", "signal"), ("for/if", "signal"), ("Events", "dom")], content)
+    content
 }
 
 fn visible_todos(items: &[(String, bool)], f: u8) -> Vec<(usize, String, bool)> {
@@ -371,7 +257,7 @@ fn demo_stopwatch() -> web_sys::Element {
         if running.get() { "Pause".to_string() } else { "Start".to_string() }
     });
 
-    let content = view! {
+    view! {
         <div class="col">
             <div class="stopwatch-time">{display}</div>
             <div class="stopwatch-btns">
@@ -394,10 +280,7 @@ fn demo_stopwatch() -> web_sys::Element {
                 }}>"Reset"</button>
             </div>
         </div>
-    };
-
-    section("Stopwatch", "⏱️", "Precise timing with setInterval and formatted display.",
-        &[("setInterval", "timer"), ("memo", "signal"), ("Closure", "dom")], content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -417,7 +300,7 @@ fn demo_forms() -> web_sys::Element {
             name.get(), email.get(), color.get(), range_val.get(), checked.get(), select_val.get())
     });
 
-    let content = view! {
+    view! {
         <div class="col">
             <div class="form-grid">
                 <div class="form-field">
@@ -457,10 +340,7 @@ fn demo_forms() -> web_sys::Element {
                 <code>{output_text}</code>
             </div>
         </div>
-    };
-
-    section("Form Inputs", "📝", "Every HTML input type with live reactive output.",
-        &[("bind:value", "signal"), ("bind:checked", "signal"), ("Forms", "api")], content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -482,7 +362,7 @@ fn demo_fetch() -> web_sys::Element {
         });
     }
 
-    let content = view! {
+    view! {
         <div class="col">
             <div class="row">
                 <button on:click={move |_: Event| {
@@ -497,10 +377,7 @@ fn demo_fetch() -> web_sys::Element {
             </div>
             <div class="fetch-result">{result}</div>
         </div>
-    };
-
-    section("Fetch API", "🌐", "Asynchronous HTTP requests with loading states.",
-        &[("fetch()", "api"), ("async/await", "api"), ("Signal", "signal")], content)
+    }
 }
 
 async fn fetch_text(url: &str) -> Result<String, JsValue> {
@@ -542,8 +419,7 @@ fn demo_mouse() -> web_sys::Element {
     let coords = view! { <div class="mouse-coords">{coords_text}</div> };
     append_node(&content, &coords);
 
-    section("Mouse Tracker", "🖱️", "Real-time mouse position tracking with visual feedback.",
-        &[("MouseEvent", "dom"), ("Signal", "signal"), ("getBoundingClientRect", "api")], content)
+    content
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -587,8 +463,7 @@ fn demo_keyboard() -> web_sys::Element {
         modifiers.set(mods.join(" + "));
     });
 
-    section("Keyboard Events", "⌨️", "Capture keystrokes with modifier detection.",
-        &[("KeyboardEvent", "dom"), ("keydown", "dom"), ("Signal", "signal")], content)
+    content
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -672,8 +547,7 @@ fn demo_canvas() -> web_sys::Element {
     append_node(&wrap, &canvas_el4);
     append_node(&content, &wrap);
 
-    section("Canvas Drawing", "🎨", "Freehand drawing with HTML5 Canvas API.",
-        &[("Canvas2D", "api"), ("MouseEvent", "dom"), ("Signal", "signal")], content)
+    content
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -683,7 +557,7 @@ fn demo_canvas() -> web_sys::Element {
 fn demo_theme() -> web_sys::Element {
     let dark = signal(true);
 
-    let content = view! {
+    view! {
         <div class="col">
             <button class="btn-primary"
                 on:click={move |_: Event| { dark.set(!dark.get()); }}>
@@ -699,10 +573,7 @@ fn demo_theme() -> web_sys::Element {
                 }}
             </div>
         </div>
-    };
-
-    section("Theme Toggle", "🎨", "Switch between dark and light themes with CSS.",
-        &[("class:toggle", "signal"), ("if/else", "signal"), ("CSS Variables", "dom")], content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -738,8 +609,7 @@ fn demo_notes() -> web_sys::Element {
     let stat = view! { <div class="notes-status">{status}</div> };
     append_node(&content, &stat);
 
-    section("Persistent Notes", "📒", "Notes that survive page reloads via localStorage.",
-        &[("localStorage", "api"), ("textarea", "dom"), ("Signal", "signal")], content)
+    content
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -797,8 +667,7 @@ fn demo_animation() -> web_sys::Element {
     };
     append_node(&content, &toggle_btn);
 
-    section("Bouncing Ball", "🏀", "Smooth animation using requestAnimationFrame.",
-        &[("rAF", "timer"), ("Signal", "signal"), ("CSS Transform", "dom")], content)
+    content
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -873,8 +742,7 @@ fn demo_chart() -> web_sys::Element {
     };
     append_node(&content, &rand_btn);
 
-    section("SVG Bar Chart", "📊", "Dynamic SVG generation with reactive data.",
-        &[("SVG", "api"), ("Signal<Vec>", "signal"), ("createElementNS", "dom")], content)
+    content
 }
 
 fn pseudo_random(seed: u32) -> u32 {
@@ -889,7 +757,7 @@ fn pseudo_random(seed: u32) -> u32 {
 fn demo_modal() -> web_sys::Element {
     let open = signal(false);
 
-    let content = view! {
+    view! {
         <div class="col">
             <button class="btn-primary"
                 on:click={move |_: Event| { open.set(true); }}>
@@ -908,10 +776,7 @@ fn demo_modal() -> web_sys::Element {
                 </div>
             </div>
         </div>
-    };
-
-    section("Modal Dialog", "💬", "Overlay dialog controlled by a boolean signal.",
-        &[("Signal<bool>", "signal"), ("class:toggle", "dom"), ("Events", "dom")], content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -973,8 +838,7 @@ fn demo_dnd() -> web_sys::Element {
     append_node(&container, &drop_zone);
     append_node(&content, &container);
 
-    section("Drag & Drop", "🖐️", "Native HTML5 Drag and Drop API.",
-        &[("DragEvent", "dom"), ("DataTransfer", "api"), ("preventDefault", "dom")], content)
+    content
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -984,7 +848,7 @@ fn demo_dnd() -> web_sys::Element {
 fn demo_clipboard() -> web_sys::Element {
     let copied = signal(false);
 
-    let content = view! {
+    view! {
         <div class="col">
             <div class="row">
                 <div class="clip-text">"🔥 Oxide — Rust frontend framework compiling to WASM"</div>
@@ -1002,8 +866,5 @@ fn demo_clipboard() -> web_sys::Element {
                 <span class="clip-toast" class:show={copied.get()}>"Copied!"</span>
             </div>
         </div>
-    };
-
-    section("Clipboard", "📋", "Copy text to clipboard with the async Clipboard API.",
-        &[("Clipboard API", "api"), ("async/await", "api"), ("class:toggle", "signal")], content)
+    }
 }

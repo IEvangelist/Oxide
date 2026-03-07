@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Oxide — Feature Showcase</title>
+    <title>Oxide — Rust Web Framework</title>
+    <meta name="description" content="Build web apps in Rust. Fine-grained reactivity, zero JavaScript, direct DOM manipulation. Compiles to WebAssembly." />
     <style>
-        /* ── Reset & Base ─────────────────────────────── */
+        /* ══════════════════════════════════════════════════
+           RESET & BASE
+           ══════════════════════════════════════════════════ */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --bg: #0a0a0a; --bg2: #141414; --bg3: #1e1e1e;
@@ -15,6 +18,8 @@
             --radius: 10px; --gap: 1rem;
             --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
             --mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+            --glow: rgba(249, 115, 22, 0.15);
+            --max-w: 1200px;
         }
         html { scroll-behavior: smooth; }
         body {
@@ -23,68 +28,387 @@
             color: var(--fg);
             line-height: 1.6;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         a { color: var(--accent); text-decoration: none; }
         a:hover { text-decoration: underline; }
         code, pre { font-family: var(--mono); }
+        img { max-width: 100%; }
 
-        /* ── Layout ───────────────────────────────────── */
-        .shell { display: flex; min-height: 100vh; }
-        .sidebar {
-            width: 240px; flex-shrink: 0;
-            background: var(--bg2);
-            border-right: 1px solid var(--fg3);
-            padding: 1.5rem 0;
-            position: sticky; top: 0; height: 100vh;
-            overflow-y: auto;
-        }
-        .sidebar-title {
-            padding: 0 1.2rem 1rem;
-            font-size: 1.3rem; font-weight: 700;
+        /* ══════════════════════════════════════════════════
+           UTILITY
+           ══════════════════════════════════════════════════ */
+        .container { max-width: var(--max-w); margin: 0 auto; padding: 0 2rem; }
+        .gradient-text {
             background: linear-gradient(135deg, var(--accent), var(--accent2));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        .sidebar-title span { font-size: 0.7rem; color: var(--fg2); -webkit-text-fill-color: var(--fg2); display: block; }
-        .nav-group { padding: 0.5rem 0; }
-        .nav-group-label { padding: 0.3rem 1.2rem; font-size: 0.7rem; text-transform: uppercase; color: var(--fg3); letter-spacing: 0.05em; }
-        .nav-link {
-            display: block; padding: 0.4rem 1.2rem;
-            color: var(--fg2); font-size: 0.85rem;
-            transition: all 0.15s;
-            border-left: 3px solid transparent;
+        .section-label {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em;
+            color: var(--accent); font-weight: 600; margin-bottom: 0.5rem;
         }
-        .nav-link:hover { color: var(--fg); background: var(--bg3); text-decoration: none; }
-        .nav-link.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg3); }
+        .section-title {
+            font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800;
+            line-height: 1.15; margin-bottom: 0.75rem;
+        }
+        .section-sub {
+            color: var(--fg2); font-size: 1.05rem; max-width: 600px; line-height: 1.7;
+        }
 
-        .main { flex: 1; padding: 2rem 3rem; max-width: 900px; }
+        /* ══════════════════════════════════════════════════
+           FADE-IN ANIMATIONS
+           ══════════════════════════════════════════════════ */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            opacity: 0; animation: fadeUp 0.7s ease-out forwards;
+        }
+        .fade-in.d1 { animation-delay: 0.1s; }
+        .fade-in.d2 { animation-delay: 0.2s; }
+        .fade-in.d3 { animation-delay: 0.3s; }
+        .fade-in.d4 { animation-delay: 0.4s; }
+        .fade-in.d5 { animation-delay: 0.5s; }
+        .fade-in.d6 { animation-delay: 0.6s; }
+        .fade-in.d7 { animation-delay: 0.7s; }
+        .fade-in.d8 { animation-delay: 0.8s; }
 
-        /* ── Demo Sections ────────────────────────────── */
-        .section { margin-bottom: 3rem; scroll-margin-top: 1rem; }
-        .section h2 {
-            font-size: 1.5rem; margin-bottom: 0.3rem;
+        /* ══════════════════════════════════════════════════
+           FLOATING ORBS (background decoration)
+           ══════════════════════════════════════════════════ */
+        @keyframes floatOrb {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -40px) scale(1.05); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+        .orb {
+            position: absolute; border-radius: 50%;
+            filter: blur(80px); opacity: 0.12; pointer-events: none;
+            animation: floatOrb 20s ease-in-out infinite;
+        }
+        .orb-1 { width: 500px; height: 500px; background: var(--accent); top: -100px; left: -100px; animation-delay: 0s; }
+        .orb-2 { width: 400px; height: 400px; background: var(--accent2); top: 200px; right: -150px; animation-delay: -7s; }
+        .orb-3 { width: 350px; height: 350px; background: var(--purple); bottom: -50px; left: 30%; animation-delay: -13s; }
+
+        /* ══════════════════════════════════════════════════
+           HEADER / NAV
+           ══════════════════════════════════════════════════ */
+        .site-header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .site-header .container {
+            display: flex; align-items: center; justify-content: space-between;
+            height: 60px;
+        }
+        .logo {
+            font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.4rem;
+        }
+        .logo-emoji { font-size: 1.4rem; -webkit-text-fill-color: initial; }
+        .header-nav { display: flex; align-items: center; gap: 1.5rem; }
+        .header-nav a {
+            color: var(--fg2); font-size: 0.85rem; font-weight: 500;
+            transition: color 0.2s;
+        }
+        .header-nav a:hover { color: var(--fg); text-decoration: none; }
+        .gh-btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.4rem 1rem; border-radius: 6px;
+            border: 1px solid var(--fg3); color: var(--fg) !important;
+            font-size: 0.8rem; font-weight: 600; transition: all 0.2s;
+        }
+        .gh-btn:hover { border-color: var(--accent); color: var(--accent) !important; text-decoration: none; }
+        .gh-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        /* Mobile hamburger */
+        .menu-toggle { display: none; background: none; border: none; color: var(--fg); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; }
+
+        /* ══════════════════════════════════════════════════
+           HERO
+           ══════════════════════════════════════════════════ */
+        .hero {
+            position: relative; min-height: 100vh;
+            display: flex; align-items: center;
+            padding-top: 80px; overflow: hidden;
+        }
+        .hero .container {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;
+            width: 100%;
+        }
+        .hero-text h1 {
+            font-size: clamp(2.5rem, 5.5vw, 4rem); font-weight: 900;
+            line-height: 1.08; letter-spacing: -0.03em; margin-bottom: 1.25rem;
+        }
+        .hero-text h1 .rust-word {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--purple) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-text p {
+            color: var(--fg2); font-size: 1.15rem; line-height: 1.7; margin-bottom: 2rem; max-width: 480px;
+        }
+        .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .hero-btn-primary {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 1.75rem; border-radius: 8px; font-size: 1rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff; border: none; cursor: pointer; transition: all 0.2s;
+            text-decoration: none;
+        }
+        .hero-btn-primary:hover { opacity: 0.92; transform: translateY(-1px); text-decoration: none; color: #fff; }
+        .hero-btn-outline {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 1.75rem; border-radius: 8px; font-size: 1rem; font-weight: 600;
+            background: transparent; color: var(--fg);
+            border: 1px solid var(--fg3); cursor: pointer; transition: all 0.2s;
+            text-decoration: none;
+        }
+        .hero-btn-outline:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+        /* Hero code block */
+        .hero-code {
+            background: #0d1117; border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; overflow: hidden;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 40px rgba(249,115,22,0.06);
+        }
+        .hero-code-header {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 1rem; background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-r { background: #ff5f57; }
+        .dot-y { background: #febc2e; }
+        .dot-g { background: #28c840; }
+        .hero-code-header span { margin-left: 0.5rem; font-size: 0.75rem; color: var(--fg3); }
+        .hero-code pre {
+            padding: 1.25rem; font-size: 0.85rem; line-height: 1.65;
+            overflow-x: auto; color: #c9d1d9;
+        }
+
+        /* Syntax highlighting classes */
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .num { color: #79c0ff; }
+        .cmt { color: #8b949e; }
+        .type { color: #ffa657; }
+        .tag-name { color: #7ee787; }
+        .attr { color: #79c0ff; }
+        .punct { color: #8b949e; }
+
+        /* ══════════════════════════════════════════════════
+           FEATURES GRID
+           ══════════════════════════════════════════════════ */
+        .features-section { padding: 7rem 0; }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+            margin-top: 3rem;
+        }
+        .feature-card {
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 2rem 1.75rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(249,115,22,0.25);
+            box-shadow: 0 12px 40px rgba(249,115,22,0.08);
+        }
+        .feature-icon { font-size: 1.75rem; margin-bottom: 1rem; }
+        .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .feature-card p { color: var(--fg2); font-size: 0.88rem; line-height: 1.65; }
+
+        /* ══════════════════════════════════════════════════
+           STATS ROW
+           ══════════════════════════════════════════════════ */
+        .stats-section { padding: 4rem 0; border-top: 1px solid rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem;
+        }
+        .stat-card { text-align: center; padding: 2rem 1rem; }
+        .stat-num {
+            font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 900;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            line-height: 1.1;
+        }
+        .stat-label { color: var(--fg2); font-size: 0.9rem; margin-top: 0.4rem; }
+
+        /* ══════════════════════════════════════════════════
+           BENCHMARKS
+           ══════════════════════════════════════════════════ */
+        .benchmarks-section { padding: 7rem 0; }
+        .bench-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 3rem; }
+
+        /* Bar chart */
+        .bar-chart { display: flex; flex-direction: column; gap: 0.75rem; }
+        .bar-row { display: flex; align-items: center; gap: 0.75rem; }
+        .bar-framework { width: 65px; font-size: 0.8rem; color: var(--fg2); text-align: right; font-weight: 500; flex-shrink: 0; }
+        .bar-track { flex: 1; height: 32px; background: rgba(255,255,255,0.03); border-radius: 6px; position: relative; overflow: hidden; }
+        .bar-fill {
+            height: 100%; border-radius: 6px;
+            background: rgba(255,255,255,0.08);
+            display: flex; align-items: center; padding-left: 0.75rem;
+            font-size: 0.75rem; font-weight: 600; color: var(--fg2);
+            transition: width 1s ease;
+        }
+        .bar-fill.oxide-bar {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+        }
+        .bar-size { white-space: nowrap; }
+
+        /* Comparison table */
+        .comparison-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .comparison-table th {
+            padding: 0.6rem 0.5rem; text-align: left;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            font-weight: 700; color: var(--fg); font-size: 0.75rem;
+        }
+        .comparison-table th:first-child { width: 110px; }
+        .comparison-table td {
+            padding: 0.55rem 0.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--fg2);
+        }
+        .comparison-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .comparison-table .col-oxide { color: var(--accent); font-weight: 600; }
+        .check-yes { color: var(--green); }
+        .check-no { color: var(--accent2); }
+
+        /* ══════════════════════════════════════════════════
+           PLAYGROUND
+           ══════════════════════════════════════════════════ */
+        .playground-section { padding: 7rem 0; }
+        .demo-featured { display: flex; flex-direction: column; gap: 2.5rem; margin-top: 3rem; }
+        .demo-card {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .demo-card:hover { border-color: rgba(249,115,22,0.2); }
+        .demo-code-panel {
+            background: #0d1117; padding: 1.5rem; border-right: 1px solid rgba(255,255,255,0.06);
+            display: flex; flex-direction: column;
+        }
+        .demo-code-title {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--fg3); margin-bottom: 0.75rem; font-weight: 600;
+        }
+        .demo-code-panel pre {
+            font-size: 0.8rem; line-height: 1.6; color: #c9d1d9;
+            overflow-x: auto; flex: 1;
+        }
+        .demo-live-panel {
+            padding: 1.5rem; display: flex; flex-direction: column;
+        }
+        .demo-live-title {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--fg3); margin-bottom: 0.75rem; font-weight: 600;
             display: flex; align-items: center; gap: 0.5rem;
         }
-        .section h2 .icon { font-size: 1.2rem; }
-        .section .desc { color: var(--fg2); margin-bottom: 1rem; font-size: 0.9rem; }
-        .section .apis {
-            display: inline-flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
-        }
-        .tag {
-            font-size: 0.65rem; padding: 0.15rem 0.5rem;
-            border-radius: 999px; background: var(--bg3);
-            color: var(--fg2); border: 1px solid var(--fg3);
-        }
-        .tag.signal { border-color: var(--accent); color: var(--accent); }
-        .tag.dom { border-color: var(--blue); color: var(--blue); }
-        .tag.api { border-color: var(--green); color: var(--green); }
-        .tag.timer { border-color: var(--purple); color: var(--purple); }
+        .live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse-dot 2s infinite; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .demo-live-panel > div { flex: 1; }
 
-        .card {
-            background: var(--bg2); border: 1px solid var(--fg3);
-            border-radius: var(--radius); padding: 1.5rem;
+        /* More demos grid */
+        .more-demos-heading { margin-top: 4rem; margin-bottom: 1.5rem; }
+        .more-demos-heading h3 { font-size: 1.3rem; font-weight: 700; }
+        .more-demos-heading p { color: var(--fg2); font-size: 0.9rem; }
+        .mini-demos-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;
+        }
+        .mini-demo-card {
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px; padding: 1rem;
+            transition: all 0.3s;
+        }
+        .mini-demo-card:hover { border-color: rgba(249,115,22,0.2); transform: translateY(-2px); }
+        .mini-demo-label {
+            font-size: 0.75rem; color: var(--fg3); margin-bottom: 0.5rem;
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .mini-demo { min-height: 100px; }
+
+        /* ══════════════════════════════════════════════════
+           QUICKSTART
+           ══════════════════════════════════════════════════ */
+        .quickstart-section { padding: 7rem 0; }
+        .steps { display: flex; flex-direction: column; gap: 2rem; margin-top: 3rem; }
+        .step {
+            display: grid; grid-template-columns: 48px 1fr; gap: 1.25rem;
+            align-items: start;
+        }
+        .step-num {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0;
+        }
+        .step-body h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .step-body .code-block {
+            background: #0d1117; border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px; padding: 1rem 1.25rem; margin-top: 0.5rem;
+            overflow-x: auto;
+        }
+        .step-body .code-block pre { font-size: 0.82rem; line-height: 1.6; color: #c9d1d9; }
+        .step-body .code-block .prompt { color: var(--green); }
+        .step-body .code-block .file-label { color: var(--fg3); font-size: 0.7rem; margin-bottom: 0.5rem; display: block; }
+
+        /* ══════════════════════════════════════════════════
+           TUTORIALS
+           ══════════════════════════════════════════════════ */
+        .tutorials-section { padding: 5rem 0; }
+        .tutorials-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+            margin-top: 2.5rem;
+        }
+        .tutorial-card {
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 2rem;
+            transition: all 0.3s;
+        }
+        .tutorial-card:hover {
+            border-color: rgba(249,115,22,0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        }
+        .tutorial-icon { font-size: 2rem; margin-bottom: 1rem; }
+        .tutorial-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .tutorial-card p { color: var(--fg2); font-size: 0.88rem; line-height: 1.6; }
+        .tutorial-tag {
+            display: inline-block; margin-top: 1rem; padding: 0.2rem 0.6rem;
+            border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+            border: 1px solid rgba(249,115,22,0.3); color: var(--accent);
         }
 
-        /* ── Shared Component Styles ──────────────────── */
+        /* ══════════════════════════════════════════════════
+           FOOTER
+           ══════════════════════════════════════════════════ */
+        .site-footer {
+            padding: 4rem 0 3rem;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            text-align: center;
+        }
+        .footer-brand { font-size: 1rem; color: var(--fg2); margin-bottom: 1rem; }
+        .footer-links { display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; }
+        .footer-links a { color: var(--fg3); font-size: 0.85rem; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--accent); text-decoration: none; }
+        .footer-tagline { color: var(--fg3); font-size: 0.8rem; font-style: italic; }
+
+        /* ══════════════════════════════════════════════════
+           SHARED COMPONENT STYLES (preserved for WASM demos)
+           ══════════════════════════════════════════════════ */
         button, .btn {
             padding: 0.45rem 1rem; font-size: 0.85rem;
             border: 1px solid var(--fg3); border-radius: 6px;
@@ -112,6 +436,9 @@
         }
         input:focus, textarea:focus, select:focus { border-color: var(--accent); }
         textarea { resize: vertical; }
+        input[type="range"] { width: 100%; accent-color: var(--accent); }
+        input[type="color"] { width: 50px; height: 32px; border: 1px solid var(--fg3); border-radius: 6px; cursor: pointer; }
+        input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
 
         .row { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; }
         .col { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -150,9 +477,6 @@
         .form-field input, .form-field select, .form-field textarea { width: 100%; }
         .form-output { margin-top: 1rem; padding: 0.7rem; background: var(--bg); border-radius: 6px; font-size: 0.8rem; }
         .form-output code { color: var(--accent); }
-        input[type="range"] { width: 100%; accent-color: var(--accent); }
-        input[type="color"] { width: 50px; height: 32px; border: 1px solid var(--fg3); border-radius: 6px; cursor: pointer; }
-        input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
 
         /* ── Fetch ────────────────────────────────────── */
         .fetch-result { max-height: 250px; overflow-y: auto; font-size: 0.8rem; font-family: var(--mono); background: var(--bg); padding: 0.7rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
@@ -263,21 +587,620 @@
         .clip-toast { color: var(--green); font-size: 0.8rem; margin-left: 0.5rem; opacity: 0; transition: opacity 0.3s; }
         .clip-toast.show { opacity: 1; }
 
-        /* ── Responsive ───────────────────────────────── */
+        /* ══════════════════════════════════════════════════
+           RESPONSIVE
+           ══════════════════════════════════════════════════ */
+        @media (max-width: 1024px) {
+            .hero .container { grid-template-columns: 1fr; gap: 2.5rem; }
+            .hero-code { max-width: 600px; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .bench-grid { grid-template-columns: 1fr; }
+            .mini-demos-grid { grid-template-columns: repeat(3, 1fr); }
+        }
         @media (max-width: 768px) {
-            .shell { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--fg3); padding: 1rem 0; }
-            .nav-group { display: flex; flex-wrap: wrap; padding: 0 1rem; }
-            .nav-group-label { display: none; }
-            .nav-link { padding: 0.3rem 0.7rem; font-size: 0.75rem; border-left: none; border-bottom: 2px solid transparent; }
-            .nav-link.active { border-left: none; border-bottom-color: var(--accent); }
-            .main { padding: 1.5rem; }
+            .container { padding: 0 1.25rem; }
+            .header-nav .nav-hide { display: none; }
+            .menu-toggle { display: block; }
+            .hero { min-height: auto; padding: 100px 0 60px; }
+            .hero .container { grid-template-columns: 1fr; }
+            .features-grid { grid-template-columns: 1fr; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+            .demo-card { grid-template-columns: 1fr; }
+            .demo-code-panel { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
+            .mini-demos-grid { grid-template-columns: repeat(2, 1fr); }
+            .tutorials-grid { grid-template-columns: 1fr; }
             .form-grid { grid-template-columns: 1fr; }
+            .step { grid-template-columns: 40px 1fr; }
+            .step-num { width: 40px; height: 40px; font-size: 0.95rem; }
+        }
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .mini-demos-grid { grid-template-columns: 1fr; }
+            .hero-buttons { flex-direction: column; }
+            .hero-btn-primary, .hero-btn-outline { text-align: center; justify-content: center; }
         }
     </style>
 </head>
 <body>
+
+    <!-- ═══════════════════════════════════════════════════
+         HEADER
+         ═══════════════════════════════════════════════════ -->
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">
+                <span class="logo-emoji">🔥</span>
+                <span class="gradient-text">Oxide</span>
+            </div>
+            <nav class="header-nav">
+                <a href="#features" class="nav-hide">Features</a>
+                <a href="#benchmarks" class="nav-hide">Benchmarks</a>
+                <a href="#playground" class="nav-hide">Playground</a>
+                <a href="#quickstart" class="nav-hide">Quick Start</a>
+                <a href="https://github.com/IEvangelist/Oxide" target="_blank" rel="noopener" class="gh-btn">
+                    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════
+         HERO
+         ═══════════════════════════════════════════════════ -->
+    <section class="hero">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="container">
+            <div class="hero-text">
+                <h1 class="fade-in">Build web apps in<br><span class="rust-word">Rust.</span></h1>
+                <p class="fade-in d2">Fine-grained reactivity. Zero JavaScript. Direct DOM manipulation. Compiles to WebAssembly.</p>
+                <div class="hero-buttons fade-in d3">
+                    <a href="#quickstart" class="hero-btn-primary">Get Started →</a>
+                    <a href="#playground" class="hero-btn-outline">See Demos ↓</a>
+                </div>
+            </div>
+            <div class="hero-code fade-in d4">
+                <div class="hero-code-header">
+                    <div class="dot dot-r"></div>
+                    <div class="dot dot-y"></div>
+                    <div class="dot dot-g"></div>
+                    <span>main.rs</span>
+                </div>
+<pre><span class="kw">use</span> oxide::prelude::*;
+
+<span class="kw">let</span> count = <span class="fn">signal</span>(<span class="num">0</span>);
+
+<span class="fn">view!</span> {
+    &lt;<span class="tag-name">div</span>&gt;
+        &lt;<span class="tag-name">p</span>&gt;<span class="str">"Count: "</span> {count}&lt;/<span class="tag-name">p</span>&gt;
+        &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count += <span class="num">1</span>}&gt;
+            <span class="str">"Increment"</span>
+        &lt;/<span class="tag-name">button</span>&gt;
+    &lt;/<span class="tag-name">div</span>&gt;
+}</pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         FEATURES
+         ═══════════════════════════════════════════════════ -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <div class="section-label fade-in">Why Oxide</div>
+            <h2 class="section-title fade-in d1">Everything you need.<br>Nothing you don't.</h2>
+            <p class="section-sub fade-in d2">A Rust-native web framework that compiles to WebAssembly with fine-grained reactivity, zero JavaScript overhead, and full type safety.</p>
+            <div class="features-grid">
+                <div class="feature-card fade-in d2">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Fine-Grained Reactivity</h3>
+                    <p>Signals track exactly what changes. No virtual DOM diffing. O(1) updates directly to the DOM nodes that need them.</p>
+                </div>
+                <div class="feature-card fade-in d3">
+                    <div class="feature-icon">🚀</div>
+                    <h3>Zero JavaScript</h3>
+                    <p>Write your entire frontend in Rust. Type-safe, memory-safe, compile-checked. The only JS is the WASM loader shim.</p>
+                </div>
+                <div class="feature-card fade-in d4">
+                    <div class="feature-icon">📦</div>
+                    <h3>Tiny Bundles</h3>
+                    <p>30 KB hello world. 178 KB for a full 16-demo showcase. Tree-shaking at the Rust compiler level.</p>
+                </div>
+                <div class="feature-card fade-in d5">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Modern DX</h3>
+                    <p>JSX-like view! macro with if/else, for loops, bind:value, class toggling. Feels like React, runs like C.</p>
+                </div>
+                <div class="feature-card fade-in d6">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Type Safe</h3>
+                    <p>Catch bugs at compile time, not in production. Strongly-typed signals, props, and events. No runtime surprises.</p>
+                </div>
+                <div class="feature-card fade-in d7">
+                    <div class="feature-icon">🔧</div>
+                    <h3>Full Web API Access</h3>
+                    <p>Canvas, Fetch, LocalStorage, Drag &amp; Drop, Clipboard, SVG, Audio — every browser API, from Rust.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         STATS
+         ═══════════════════════════════════════════════════ -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-row">
+                <div class="stat-card fade-in d1">
+                    <div class="stat-num">30 KB</div>
+                    <div class="stat-label">Hello World Bundle</div>
+                </div>
+                <div class="stat-card fade-in d2">
+                    <div class="stat-num">16</div>
+                    <div class="stat-label">Interactive Demos</div>
+                </div>
+                <div class="stat-card fade-in d3">
+                    <div class="stat-num">0</div>
+                    <div class="stat-label">Lines of JavaScript</div>
+                </div>
+                <div class="stat-card fade-in d4">
+                    <div class="stat-num">5</div>
+                    <div class="stat-label">Core Reactivity Tests</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         BENCHMARKS
+         ═══════════════════════════════════════════════════ -->
+    <section id="benchmarks" class="benchmarks-section">
+        <div class="container">
+            <div class="section-label fade-in">Performance</div>
+            <h2 class="section-title fade-in d1">Built for speed.<br>Measured to prove it.</h2>
+            <p class="section-sub fade-in d2">See how Oxide stacks up against the most popular web frameworks.</p>
+
+            <div class="bench-grid">
+                <!-- Bar chart -->
+                <div class="fade-in d3">
+                    <h3 style="font-size:1rem; font-weight:700; margin-bottom:1.25rem;">Bundle Size (Hello World, gzipped)</h3>
+                    <div class="bar-chart">
+                        <div class="bar-row">
+                            <div class="bar-framework">Svelte</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:6%"><span class="bar-size">3 KB</span></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-framework">Solid</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:14%"><span class="bar-size">7 KB</span></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-framework" style="color:var(--accent); font-weight:700;">Oxide</div>
+                            <div class="bar-track"><div class="bar-fill oxide-bar" style="width:30%"><span class="bar-size">15 KB</span></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-framework">Leptos</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:50%"><span class="bar-size">25 KB</span></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-framework">Vue</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:66%"><span class="bar-size">33 KB</span></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-framework">React</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:84%"><span class="bar-size">42 KB</span></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-framework">Yew</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:100%"><span class="bar-size">50 KB</span></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison table -->
+                <div class="fade-in d4">
+                    <h3 style="font-size:1rem; font-weight:700; margin-bottom:1.25rem;">Feature Comparison</h3>
+                    <div style="overflow-x:auto;">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>React</th>
+                                    <th>Vue</th>
+                                    <th>Svelte</th>
+                                    <th>Solid</th>
+                                    <th>Leptos</th>
+                                    <th class="col-oxide">Oxide</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Language</td><td>JS/TS</td><td>JS/TS</td><td>JS/TS</td><td>JS/TS</td><td>Rust</td><td class="col-oxide">Rust</td>
+                                </tr>
+                                <tr>
+                                    <td>Reactivity</td><td>VDOM</td><td>Proxy</td><td>Compiler</td><td>Signals</td><td>Signals</td><td class="col-oxide">Signals</td>
+                                </tr>
+                                <tr>
+                                    <td>Bundle Size</td><td>42 KB</td><td>33 KB</td><td>3 KB</td><td>7 KB</td><td>25 KB</td><td class="col-oxide">15 KB</td>
+                                </tr>
+                                <tr>
+                                    <td>Type Safety</td><td>Optional</td><td>Optional</td><td>Optional</td><td>Optional</td><td>Native</td><td class="col-oxide">Native</td>
+                                </tr>
+                                <tr>
+                                    <td>Memory Safety</td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-yes">Yes</span></td>
+                                    <td class="col-oxide"><span class="check-yes">Yes</span></td>
+                                </tr>
+                                <tr>
+                                    <td>WASM Native</td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-no">No</span></td>
+                                    <td><span class="check-yes">Yes</span></td>
+                                    <td class="col-oxide"><span class="check-yes">Yes</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Two-way Bind</td>
+                                    <td><span class="check-no">❌</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td><span class="check-no">❌</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td class="col-oxide"><span class="check-yes">✅</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Cond. Render</td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td><span class="check-yes">✅</span></td>
+                                    <td class="col-oxide"><span class="check-yes">✅</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         PLAYGROUND
+         ═══════════════════════════════════════════════════ -->
+    <section id="playground" class="playground-section">
+        <div class="container">
+            <div class="section-label fade-in">Interactive</div>
+            <h2 class="section-title fade-in d1">Try It Live</h2>
+            <p class="section-sub fade-in d2">Every demo runs entirely in Rust compiled to WebAssembly. Zero JavaScript.</p>
+
+            <div class="demo-featured">
+
+                <!-- Demo 1: Counter -->
+                <div class="demo-card fade-in d3">
+                    <div class="demo-code-panel">
+                        <div class="demo-code-title">Counter — Source</div>
+<pre><span class="kw">let mut</span> count = <span class="fn">signal</span>(<span class="num">0</span>);
+
+<span class="fn">view!</span> {
+    &lt;<span class="tag-name">div</span>&gt;
+        &lt;<span class="tag-name">p</span> <span class="attr">class</span>=<span class="str">"big-num"</span>&gt;{count}&lt;/<span class="tag-name">p</span>&gt;
+        &lt;<span class="tag-name">div</span> <span class="attr">class</span>=<span class="str">"row"</span>&gt;
+            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count -= <span class="num">1</span>}&gt;<span class="str">"−"</span>&lt;/<span class="tag-name">button</span>&gt;
+            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count.<span class="fn">set</span>(<span class="num">0</span>)}&gt;<span class="str">"Reset"</span>&lt;/<span class="tag-name">button</span>&gt;
+            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count += <span class="num">1</span>}&gt;<span class="str">"+"</span>&lt;/<span class="tag-name">button</span>&gt;
+        &lt;/<span class="tag-name">div</span>&gt;
+    &lt;/<span class="tag-name">div</span>&gt;
+}</pre>
+                    </div>
+                    <div class="demo-live-panel">
+                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
+                        <div id="demo-counter-live"></div>
+                    </div>
+                </div>
+
+                <!-- Demo 2: Todo List -->
+                <div class="demo-card fade-in d3">
+                    <div class="demo-code-panel">
+                        <div class="demo-code-title">Todo List — Source</div>
+<pre><span class="kw">let</span> todos = <span class="fn">signal</span>(<span class="fn">vec!</span>[...]);
+<span class="kw">let</span> input = <span class="fn">signal</span>(<span class="type">String</span>::<span class="fn">new</span>());
+
+<span class="fn">view!</span> {
+    &lt;<span class="tag-name">input</span> <span class="attr">bind:value</span>={input} /&gt;
+    &lt;<span class="tag-name">ul</span>&gt;
+        {<span class="kw">for</span> (text, done) <span class="kw">in</span> todos.<span class="fn">get</span>() {
+            &lt;<span class="tag-name">li</span> <span class="attr">class:done</span>={done}&gt;
+                {text}
+            &lt;/<span class="tag-name">li</span>&gt;
+        }}
+    &lt;/<span class="tag-name">ul</span>&gt;
+}</pre>
+                    </div>
+                    <div class="demo-live-panel">
+                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
+                        <div id="demo-todo-live"></div>
+                    </div>
+                </div>
+
+                <!-- Demo 3: Form Binding -->
+                <div class="demo-card fade-in d3">
+                    <div class="demo-code-panel">
+                        <div class="demo-code-title">Form Binding — Source</div>
+<pre><span class="kw">let</span> name = <span class="fn">signal</span>(<span class="type">String</span>::<span class="fn">new</span>());
+<span class="kw">let</span> subscribed = <span class="fn">signal</span>(<span class="num">false</span>);
+
+<span class="fn">view!</span> {
+    &lt;<span class="tag-name">input</span> <span class="attr">bind:value</span>={name} /&gt;
+    &lt;<span class="tag-name">input</span> <span class="attr">type</span>=<span class="str">"checkbox"</span>
+        <span class="attr">bind:checked</span>={subscribed} /&gt;
+    &lt;<span class="tag-name">p</span>&gt;{name} {subscribed}&lt;/<span class="tag-name">p</span>&gt;
+}</pre>
+                    </div>
+                    <div class="demo-live-panel">
+                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
+                        <div id="demo-forms-live"></div>
+                    </div>
+                </div>
+
+                <!-- Demo 4: Fetch API -->
+                <div class="demo-card fade-in d3">
+                    <div class="demo-code-panel">
+                        <div class="demo-code-title">Fetch API — Source</div>
+<pre><span class="kw">let</span> data = <span class="fn">signal</span>(<span class="str">"Click to fetch"</span>.<span class="fn">into</span>());
+
+<span class="fn">wasm_bindgen_futures</span>::<span class="fn">spawn_local</span>(<span class="kw">async</span> {
+    <span class="kw">let</span> text = <span class="fn">fetch</span>(<span class="str">"https://api.example.com"</span>)
+        .<span class="kw">await</span>.<span class="fn">unwrap</span>();
+    data.<span class="fn">set</span>(text);
+});
+
+<span class="fn">view!</span> {
+    &lt;<span class="tag-name">div</span>&gt;{data}&lt;/<span class="tag-name">div</span>&gt;
+}</pre>
+                    </div>
+                    <div class="demo-live-panel">
+                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
+                        <div id="demo-fetch-live"></div>
+                    </div>
+                </div>
+
+                <!-- Demo 5: Canvas Drawing -->
+                <div class="demo-card fade-in d3">
+                    <div class="demo-code-panel">
+                        <div class="demo-code-title">Canvas Drawing — Source</div>
+<pre><span class="kw">let</span> canvas: <span class="type">HtmlCanvasElement</span> = ...;
+<span class="kw">let</span> ctx = canvas.<span class="fn">get_context</span>(<span class="str">"2d"</span>);
+
+<span class="cmt">// on:mousedown → ctx.begin_path()</span>
+<span class="cmt">// on:mousemove → ctx.line_to(x, y)</span>
+<span class="cmt">// on:mouseup   → stop drawing</span></pre>
+                    </div>
+                    <div class="demo-live-panel">
+                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
+                        <div id="demo-canvas-live"></div>
+                    </div>
+                </div>
+
+                <!-- Demo 6: SVG Chart -->
+                <div class="demo-card fade-in d3">
+                    <div class="demo-code-panel">
+                        <div class="demo-code-title">SVG Chart — Source</div>
+<pre><span class="kw">let</span> data = <span class="fn">signal</span>(<span class="fn">vec!</span>[<span class="num">65</span>, <span class="num">40</span>, <span class="num">80</span>, <span class="num">55</span>, <span class="num">90</span>]);
+
+<span class="fn">view!</span> {
+    &lt;<span class="tag-name">svg</span> <span class="attr">viewBox</span>=<span class="str">"0 0 700 220"</span>&gt;
+        {<span class="kw">for</span> (i, val) <span class="kw">in</span> data.<span class="fn">get</span>().<span class="fn">enumerate</span>() {
+            &lt;<span class="tag-name">rect</span> <span class="attr">x</span>={...} <span class="attr">height</span>={val} <span class="attr">fill</span>={...} /&gt;
+        }}
+    &lt;/<span class="tag-name">svg</span>&gt;
+}</pre>
+                    </div>
+                    <div class="demo-live-panel">
+                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
+                        <div id="demo-chart-live"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- More demos -->
+            <div class="more-demos-heading fade-in">
+                <h3>More Demos</h3>
+                <p>All running in Rust → WebAssembly. Click around and explore.</p>
+            </div>
+            <div class="mini-demos-grid">
+                <div class="mini-demo-card fade-in d1">
+                    <div class="mini-demo-label">🌡️ Temperature</div>
+                    <div id="demo-temperature-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d2">
+                    <div class="mini-demo-label">⏱️ Stopwatch</div>
+                    <div id="demo-stopwatch-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d3">
+                    <div class="mini-demo-label">🖱️ Mouse Tracker</div>
+                    <div id="demo-mouse-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d4">
+                    <div class="mini-demo-label">⌨️ Keyboard</div>
+                    <div id="demo-keyboard-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d5">
+                    <div class="mini-demo-label">🎨 Theme Toggle</div>
+                    <div id="demo-theme-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d6">
+                    <div class="mini-demo-label">📝 Notes</div>
+                    <div id="demo-notes-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d7">
+                    <div class="mini-demo-label">🎬 Animation</div>
+                    <div id="demo-animation-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d8">
+                    <div class="mini-demo-label">🪟 Modal</div>
+                    <div id="demo-modal-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d7">
+                    <div class="mini-demo-label">🫳 Drag &amp; Drop</div>
+                    <div id="demo-dnd-live" class="mini-demo"></div>
+                </div>
+                <div class="mini-demo-card fade-in d8">
+                    <div class="mini-demo-label">📋 Clipboard</div>
+                    <div id="demo-clipboard-live" class="mini-demo"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         QUICKSTART
+         ═══════════════════════════════════════════════════ -->
+    <section id="quickstart" class="quickstart-section">
+        <div class="container">
+            <div class="section-label fade-in">Get Started</div>
+            <h2 class="section-title fade-in d1">From zero to WASM<br>in five steps.</h2>
+            <p class="section-sub fade-in d2">Everything you need to build and ship your first Oxide app.</p>
+
+            <div class="steps">
+                <!-- Step 1 -->
+                <div class="step fade-in d3">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <h3>Install Rust &amp; WASM Toolchain</h3>
+                        <div class="code-block">
+<pre><span class="prompt">$</span> curl --proto <span class="str">'=https'</span> --tlsv1.2 -sSf https://sh.rustup.rs | sh
+<span class="prompt">$</span> rustup target add wasm32-unknown-unknown
+<span class="prompt">$</span> cargo install wasm-pack</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step fade-in d4">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
+                        <h3>Create Your Project</h3>
+                        <div class="code-block">
+<pre><span class="prompt">$</span> cargo new --lib my-app
+<span class="prompt">$</span> cd my-app</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="step fade-in d5">
+                    <div class="step-num">3</div>
+                    <div class="step-body">
+                        <h3>Add Dependencies</h3>
+                        <div class="code-block">
+                            <span class="file-label">Cargo.toml</span>
+<pre>[<span class="attr">lib</span>]
+<span class="attr">crate-type</span> = [<span class="str">"cdylib"</span>]
+
+[<span class="attr">dependencies</span>]
+<span class="attr">oxide</span> = { <span class="attr">git</span> = <span class="str">"https://github.com/IEvangelist/Oxide"</span> }
+<span class="attr">wasm-bindgen</span> = <span class="str">"0.2"</span></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="step fade-in d6">
+                    <div class="step-num">4</div>
+                    <div class="step-body">
+                        <h3>Write Your App</h3>
+                        <div class="code-block">
+                            <span class="file-label">src/lib.rs</span>
+<pre><span class="kw">use</span> oxide::prelude::*;
+<span class="kw">use</span> wasm_bindgen::prelude::*;
+
+<span class="attr">#[wasm_bindgen(start)]</span>
+<span class="kw">pub fn</span> <span class="fn">main</span>() {
+    <span class="fn">mount</span>(<span class="str">"#app"</span>, || {
+        <span class="kw">let mut</span> count = <span class="fn">signal</span>(<span class="num">0</span>);
+        <span class="fn">view!</span> {
+            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count += <span class="num">1</span>}&gt;
+                <span class="str">"Clicks: "</span> {count}
+            &lt;/<span class="tag-name">button</span>&gt;
+        }
+    });
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="step fade-in d7">
+                    <div class="step-num">5</div>
+                    <div class="step-body">
+                        <h3>Build &amp; Run</h3>
+                        <div class="code-block">
+<pre><span class="prompt">$</span> wasm-pack build --target web
+<span class="prompt">$</span> python -m http.server <span class="num">8080</span></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         TUTORIALS
+         ═══════════════════════════════════════════════════ -->
+    <section class="tutorials-section">
+        <div class="container">
+            <div class="section-label fade-in">Learn</div>
+            <h2 class="section-title fade-in d1">Build something real.</h2>
+            <p class="section-sub fade-in d2">Step-by-step tutorials to master every part of Oxide.</p>
+
+            <div class="tutorials-grid">
+                <div class="tutorial-card fade-in d3">
+                    <div class="tutorial-icon">📋</div>
+                    <h3>Build a Todo App</h3>
+                    <p>Learn signals, lists, and localStorage in 50 lines of Rust.</p>
+                    <span class="tutorial-tag">Coming Soon</span>
+                </div>
+                <div class="tutorial-card fade-in d4">
+                    <div class="tutorial-icon">📊</div>
+                    <h3>Build a Dashboard</h3>
+                    <p>Fetch API data, render SVG charts, and add real-time updates.</p>
+                    <span class="tutorial-tag">Coming Soon</span>
+                </div>
+                <div class="tutorial-card fade-in d5">
+                    <div class="tutorial-icon">🎮</div>
+                    <h3>Build a Game</h3>
+                    <p>Canvas rendering, keyboard input, and animation frames in pure Rust.</p>
+                    <span class="tutorial-tag">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         FOOTER
+         ═══════════════════════════════════════════════════ -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-brand">Built with 🔥 by the Oxide community</div>
+            <div class="footer-links">
+                <a href="https://github.com/IEvangelist/Oxide" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/IEvangelist/Oxide#readme" target="_blank" rel="noopener">Docs</a>
+                <a href="https://github.com/IEvangelist/Oxide/tree/main/examples" target="_blank" rel="noopener">Examples</a>
+            </div>
+            <div class="footer-tagline">Rust + WebAssembly = The Future of the Web</div>
+        </div>
+    </footer>
+
+    <!-- WASM app mount point -->
     <div id="app"></div>
+
     <script type="module">
         import init from './pkg/oxide_showcase.js';
         init();
