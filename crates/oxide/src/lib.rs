@@ -26,6 +26,11 @@ pub mod resiliency {
     pub use oxide_resiliency::*;
 }
 
+/// Pre-built UI components — buttons, inputs, cards, modals, and more.
+pub mod components {
+    pub use oxide_components::*;
+}
+
 /// The Component trait — implement this for struct-based components.
 ///
 /// ```ignore

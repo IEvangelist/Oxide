@@ -380,7 +380,7 @@ fn guess_mime(path: &str) -> &'static str {
 const TEMPLATE_CARGO: &str = r#"[package]
 name = "{{name}}"
 version = "0.1.0"
-edition = "2024"
+edition = "2026"
 
 [lib]
 crate-type = ["cdylib"]

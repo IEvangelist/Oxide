@@ -55,6 +55,11 @@
         .gh-btn:hover { border-color: var(--accent); color: var(--accent) !important; text-decoration: none; }
         .gh-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
+        /* Hamburger menu */
+        .nav-toggle-cb { display: none; }
+        .nav-toggle { display: none; cursor: pointer; flex-direction: column; gap: 4px; z-index: 101; }
+        .nav-toggle span { display: block; width: 20px; height: 2px; background: var(--fg); transition: all 0.3s; }
+
         /* ═══════ PAGE HERO ═══════ */
         .page-hero { padding: 120px 0 2rem; }
         .page-hero h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 900; line-height: 1.1; margin-bottom: 0.75rem; }
@@ -109,8 +114,26 @@
         /* ═══════ RESPONSIVE ═══════ */
         @media (max-width: 768px) {
             .container { padding: 0 1rem; }
-            .header-nav { gap: 0.75rem; }
-            .header-nav a { font-size: 0.72rem; }
+            .nav-toggle { display: flex; }
+            .header-nav {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0; right: 0;
+                background: var(--bg2);
+                border-bottom: 1px solid var(--fg3);
+                flex-direction: column;
+                padding: 1rem 2rem;
+                gap: 0.75rem;
+                z-index: 100;
+            }
+            .header-nav a { font-size: 0.9rem; padding: 0.4rem 0; }
+            .header-nav .gh-btn { align-self: flex-start; }
+            .nav-toggle-cb:checked ~ .header-nav { display: flex; }
+            .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+            .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(2) { opacity: 0; }
+            .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+            .site-header .container { position: relative; }
             .gh-btn { padding: 0.3rem 0.6rem; font-size: 0.7rem; }
             .page-hero { padding: 90px 0 2rem; }
             .doc-section { padding: 2rem 0; }
@@ -130,6 +153,10 @@
             <div class="logo">
                 <a href="index.html"><span class="logo-emoji">🔥</span> <span class="gradient-text">Oxide</span></a>
             </div>
+            <input type="checkbox" id="nav-toggle" class="nav-toggle-cb">
+            <label for="nav-toggle" class="nav-toggle" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </label>
             <nav class="header-nav">
                 <a href="index.html#features">Features</a>
                 <a href="index.html#cli">CLI</a>
@@ -159,14 +186,15 @@
                 <a href="#dom"><span class="toc-num">6.</span> DOM Utilities</a>
                 <a href="#head"><span class="toc-num">7.</span> Head Management</a>
                 <a href="#routing"><span class="toc-num">8.</span> Routing</a>
-                <a href="#timers"><span class="toc-num">9.</span> Timers</a>
-                <a href="#storage"><span class="toc-num">10.</span> Storage</a>
-                <a href="#console"><span class="toc-num">11.</span> Console</a>
-                <a href="#location"><span class="toc-num">12.</span> Location</a>
-                <a href="#telemetry"><span class="toc-num">13.</span> OpenTelemetry</a>
-                <a href="#resiliency"><span class="toc-num">14.</span> Resiliency</a>
-                <a href="#components"><span class="toc-num">15.</span> Component System</a>
-                <a href="#debugging"><span class="toc-num">16.</span> Debugging</a>
+                <a href="#ui-components"><span class="toc-num">9.</span> Pre-built Components</a>
+                <a href="#timers"><span class="toc-num">10.</span> Timers</a>
+                <a href="#storage"><span class="toc-num">11.</span> Storage</a>
+                <a href="#console"><span class="toc-num">12.</span> Console</a>
+                <a href="#location"><span class="toc-num">13.</span> Location</a>
+                <a href="#telemetry"><span class="toc-num">14.</span> OpenTelemetry</a>
+                <a href="#resiliency"><span class="toc-num">15.</span> Resiliency</a>
+                <a href="#components"><span class="toc-num">16.</span> Component System</a>
+                <a href="#debugging"><span class="toc-num">17.</span> Debugging</a>
             </nav>
         </div>
     </section>
@@ -571,10 +599,96 @@ count.<span class="fn">update</span>(|n| *n += <span class="num">1</span>); <spa
         </div>
     </section>
 
-    <!-- ═══════ 9 · TIMERS ═══════ -->
+    <!-- ═══════ 9 · PRE-BUILT COMPONENTS ═══════ -->
+    <section id="ui-components" class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">9. Pre-built Components</h2>
+            <p>Best-in-class UI components with builder APIs, built-in dark-theme CSS, and ARIA accessibility.</p>
+            <p>Components are included in the <code>oxide</code> crate — access via <code>oxide::components::*</code>.</p>
+
+            <h3>Button</h3>
+            <p>Variants: primary, outline, danger, ghost. Sizes: small, medium, large. States: loading, disabled.</p>
+            <div class="code-block">
+<pre><span class="fn">button</span>(<span class="str">"Save"</span>).<span class="fn">primary</span>().<span class="fn">on_click</span>(|_| <span class="fn">save</span>())</pre>
+            </div>
+
+            <h3>TextInput</h3>
+            <p>With label, placeholder, required, error message, signal binding.</p>
+            <div class="code-block">
+<pre><span class="fn">text_input</span>(<span class="str">"Email"</span>).<span class="fn">placeholder</span>(<span class="str">"you@example.com"</span>).<span class="fn">bind</span>(email).<span class="fn">build</span>()</pre>
+            </div>
+
+            <h3>TextArea</h3>
+            <div class="code-block">
+<pre><span class="fn">textarea</span>(<span class="str">"Notes"</span>, notes_signal)</pre>
+            </div>
+
+            <h3>Select</h3>
+            <div class="code-block">
+<pre><span class="fn">select</span>(<span class="str">"Language"</span>, &amp;[(<span class="str">"rs"</span>,<span class="str">"Rust"</span>),(<span class="str">"ts"</span>,<span class="str">"TypeScript"</span>)], lang)</pre>
+            </div>
+
+            <h3>Checkbox</h3>
+            <div class="code-block">
+<pre><span class="fn">checkbox</span>(<span class="str">"Subscribe to updates"</span>, subscribed)</pre>
+            </div>
+
+            <h3>Card</h3>
+            <div class="code-block">
+<pre><span class="fn">card</span>(<span class="str">"Settings"</span>).<span class="fn">body</span>(content).<span class="fn">footer</span>(actions).<span class="fn">build</span>()</pre>
+            </div>
+
+            <h3>Alert</h3>
+            <p>Severities: success, warning, error, info. Dismissible with signal.</p>
+            <div class="code-block">
+<pre><span class="fn">alert</span>(<span class="str">"Saved!"</span>).<span class="fn">success</span>().<span class="fn">build</span>()</pre>
+            </div>
+
+            <h3>Modal</h3>
+            <p>Backdrop click closes. ARIA dialog role.</p>
+            <div class="code-block">
+<pre><span class="fn">modal</span>(is_open).<span class="fn">title</span>(<span class="str">"Confirm"</span>).<span class="fn">body</span>(content).<span class="fn">build</span>()</pre>
+            </div>
+
+            <h3>Spinner</h3>
+            <div class="code-block">
+<pre><span class="fn">spinner</span>()
+<span class="fn">spinner_with_text</span>(<span class="str">"Loading..."</span>)</pre>
+            </div>
+
+            <h3>Progress</h3>
+            <p>Animated bar, ARIA progressbar role.</p>
+            <div class="code-block">
+<pre><span class="fn">progress</span>(value_signal)</pre>
+            </div>
+
+            <h3>Tabs</h3>
+            <div class="code-block">
+<pre><span class="fn">tabs</span>(&amp;[(<span class="str">"Tab 1"</span>, view_fn), (<span class="str">"Tab 2"</span>, view_fn)])</pre>
+            </div>
+
+            <h3>Badge</h3>
+            <div class="code-block">
+<pre><span class="fn">badge</span>(<span class="str">"New"</span>, <span class="type">Severity</span>::<span class="fn">Success</span>)</pre>
+            </div>
+
+            <h3>Divider</h3>
+            <div class="code-block">
+<pre><span class="fn">divider</span>()</pre>
+            </div>
+
+            <h3>Skeleton</h3>
+            <p>Loading placeholder with shimmer animation.</p>
+            <div class="code-block">
+<pre><span class="fn">skeleton</span>(<span class="str">"100%"</span>, <span class="str">"20px"</span>)</pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ 10 · TIMERS ═══════ -->
     <section id="timers" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">9. Timers</h2>
+            <h2 class="fade-in">10. Timers</h2>
             <p>Wrappers around browser timer APIs.</p>
 
             <div class="code-block">
@@ -594,10 +708,10 @@ count.<span class="fn">update</span>(|n| *n += <span class="num">1</span>); <spa
         </div>
     </section>
 
-    <!-- ═══════ 10 · STORAGE ═══════ -->
+    <!-- ═══════ 11 · STORAGE ═══════ -->
     <section id="storage" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">10. Storage</h2>
+            <h2 class="fade-in">11. Storage</h2>
             <p>Thin wrappers around the Web Storage API.</p>
 
             <div class="code-block">
@@ -607,10 +721,10 @@ count.<span class="fn">update</span>(|n| *n += <span class="num">1</span>); <spa
         </div>
     </section>
 
-    <!-- ═══════ 11 · CONSOLE ═══════ -->
+    <!-- ═══════ 12 · CONSOLE ═══════ -->
     <section id="console" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">11. Console</h2>
+            <h2 class="fade-in">12. Console</h2>
             <p>Type-safe browser console bindings.</p>
 
             <div class="code-block">
@@ -620,10 +734,10 @@ count.<span class="fn">update</span>(|n| *n += <span class="num">1</span>); <spa
         </div>
     </section>
 
-    <!-- ═══════ 12 · LOCATION ═══════ -->
+    <!-- ═══════ 13 · LOCATION ═══════ -->
     <section id="location" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">12. Location</h2>
+            <h2 class="fade-in">13. Location</h2>
             <p>Read and write the URL hash fragment.</p>
 
             <div class="code-block">
@@ -633,10 +747,10 @@ count.<span class="fn">update</span>(|n| *n += <span class="num">1</span>); <spa
         </div>
     </section>
 
-    <!-- ═══════ 13 · OPENTELEMETRY ═══════ -->
+    <!-- ═══════ 14 · OPENTELEMETRY ═══════ -->
     <section id="telemetry" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">13. OpenTelemetry</h2>
+            <h2 class="fade-in">14. OpenTelemetry</h2>
             <p>Built-in distributed tracing with zero-cost abstraction when disabled.</p>
 
             <h3>telemetry::init(Config) — enable auto-tracing</h3>
@@ -684,10 +798,10 @@ telemetry::<span class="fn">clear_hook</span>();</pre>
         </div>
     </section>
 
-    <!-- ═══════ 14 · RESILIENCY ═══════ -->
+    <!-- ═══════ 15 · RESILIENCY ═══════ -->
     <section id="resiliency" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">14. Resiliency</h2>
+            <h2 class="fade-in">15. Resiliency</h2>
             <p>Production-grade fault tolerance built into the framework.</p>
 
             <h3>error_boundary — catch panics</h3>
@@ -733,10 +847,10 @@ breaker.<span class="fn">reset</span>(); <span class="cmt">// force back to Clos
         </div>
     </section>
 
-    <!-- ═══════ 15 · COMPONENT SYSTEM ═══════ -->
+    <!-- ═══════ 16 · COMPONENT SYSTEM ═══════ -->
     <section id="components" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">15. Component System</h2>
+            <h2 class="fade-in">16. Component System</h2>
             <p>Struct-based components with the <code>Component</code> trait.</p>
 
             <h3>Define a component</h3>
@@ -767,10 +881,10 @@ breaker.<span class="fn">reset</span>(); <span class="cmt">// force back to Clos
         </div>
     </section>
 
-    <!-- ═══════ 16 · DEBUGGING ═══════ -->
+    <!-- ═══════ 17 · DEBUGGING ═══════ -->
     <section id="debugging" class="doc-section">
         <div class="container">
-            <h2 class="fade-in">16. Debugging</h2>
+            <h2 class="fade-in">17. Debugging</h2>
             <p>Source-level Rust debugging in the browser.</p>
 
             <ol>

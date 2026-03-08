@@ -1,0 +1,28 @@
+[package]
+name = "oxide-components"
+description = "Best-in-class UI component library for Oxide — buttons, inputs, cards, modals, and more"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+oxide-core = { path = "../oxide-core" }
+oxide-dom = { path = "../oxide-dom" }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "Element",
+    "Node",
+    "HtmlElement",
+    "HtmlInputElement",
+    "HtmlTextAreaElement",
+    "HtmlSelectElement",
+    "Document",
+    "CssStyleDeclaration",
+    "DomTokenList",
+    "Event",
+    "EventTarget",
+]

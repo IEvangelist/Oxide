@@ -7,6 +7,7 @@ members = [
     "crates/oxide-telemetry",
     "crates/oxide-resiliency",
     "crates/oxide-router",
+    "crates/oxide-components",
     "crates/oxide",
     "crates/oxide-cli",
     "examples/counter",
