@@ -24,7 +24,6 @@ use oxide_dom::{create_element, set_attribute, append_text, append_node, add_eve
 use std::cell::RefCell;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Public API
@@ -52,6 +51,7 @@ pub fn route(path: &'static str, view: fn() -> web_sys::Element) -> Route {
 
 /// The router instance.
 pub struct Router {
+    #[allow(dead_code)]
     mode: RouterMode,
     routes: Vec<Route>,
     current_path: Signal<String>,
@@ -254,4 +254,72 @@ fn extract_params(pattern: &str, path: &str) -> HashMap<String, String> {
     }
 
     params
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exact_match() {
+        assert!(matches_route("/", "/"));
+        assert!(matches_route("/about", "/about"));
+        assert!(matches_route("/a/b/c", "/a/b/c"));
+    }
+
+    #[test]
+    fn no_match_different_segments() {
+        assert!(!matches_route("/about", "/home"));
+        assert!(!matches_route("/a/b", "/a/c"));
+    }
+
+    #[test]
+    fn no_match_different_length() {
+        assert!(!matches_route("/a/b", "/a"));
+        assert!(!matches_route("/a", "/a/b"));
+    }
+
+    #[test]
+    fn param_match() {
+        assert!(matches_route("/user/:id", "/user/42"));
+        assert!(matches_route("/post/:id/comment/:cid", "/post/5/comment/99"));
+    }
+
+    #[test]
+    fn param_no_match_wrong_prefix() {
+        assert!(!matches_route("/user/:id", "/post/42"));
+    }
+
+    #[test]
+    fn extract_single_param() {
+        let params = extract_params("/user/:id", "/user/42");
+        assert_eq!(params.get("id"), Some(&"42".to_string()));
+    }
+
+    #[test]
+    fn extract_multiple_params() {
+        let params = extract_params("/org/:org/repo/:repo", "/org/oxide/repo/framework");
+        assert_eq!(params.get("org"), Some(&"oxide".to_string()));
+        assert_eq!(params.get("repo"), Some(&"framework".to_string()));
+    }
+
+    #[test]
+    fn extract_no_params() {
+        let params = extract_params("/about", "/about");
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn root_route_matches() {
+        assert!(matches_route("/", "/"));
+        let params = extract_params("/", "/");
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn trailing_slashes_handled() {
+        // split + filter(empty) handles trailing slashes
+        assert!(matches_route("/about/", "/about"));
+        assert!(matches_route("/about", "/about/"));
+    }
 }

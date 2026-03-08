@@ -18,7 +18,8 @@ pub fn watch<T: Clone + PartialEq + 'static>(
     let prev: Signal<Option<T>> = signal(None);
     create_effect(move || {
         let val = source();
-        let old = prev.get();
+        // Read prev WITHOUT subscribing — avoids self-referential cycle
+        let old = crate::runtime::untrack(|| prev.get());
         if old.as_ref() != Some(&val) {
             prev.set(Some(val.clone()));
             if old.is_some() {

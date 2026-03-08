@@ -10,6 +10,7 @@ members = [
     "crates/oxide",
     "crates/oxide-cli",
     "examples/counter",
+    "examples/todo",
     "examples/showcase",
 ]
 

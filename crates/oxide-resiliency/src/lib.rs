@@ -11,7 +11,7 @@
 use oxide_core::signal;
 use oxide_core::Signal;
 use oxide_dom::{create_element, append_text, set_style};
-use wasm_bindgen::JsCast;
+use wasm_bindgen::JsCast as _;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -364,4 +364,57 @@ pub async fn sleep(ms: u32) {
             .ok();
     });
     wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RetryConfig, CircuitState, CircuitError, RetryError, TimeoutError};
+
+    #[test]
+    fn retry_config_exponential() {
+        let cfg = RetryConfig::exponential(3, 100);
+        assert_eq!(cfg.max_attempts, 3);
+        assert_eq!(cfg.initial_delay_ms, 100);
+        assert_eq!(cfg.backoff_factor, 2.0);
+        assert_eq!(cfg.max_delay_ms, 30_000);
+    }
+
+    #[test]
+    fn retry_config_fixed() {
+        let cfg = RetryConfig::fixed(5, 500);
+        assert_eq!(cfg.max_attempts, 5);
+        assert_eq!(cfg.initial_delay_ms, 500);
+        assert_eq!(cfg.backoff_factor, 1.0);
+        assert_eq!(cfg.max_delay_ms, 500);
+    }
+
+    #[test]
+    fn circuit_state_display() {
+        assert_eq!(format!("{}", CircuitState::Closed), "Closed");
+        assert_eq!(format!("{}", CircuitState::Open), "Open");
+        assert_eq!(format!("{}", CircuitState::HalfOpen), "Half-Open");
+    }
+
+    #[test]
+    fn circuit_error_display() {
+        let err: CircuitError<String> = CircuitError::Open;
+        assert_eq!(format!("{}", err), "circuit breaker is open");
+
+        let err: CircuitError<&str> = CircuitError::Failed("oops");
+        assert!(format!("{}", err).contains("oops"));
+    }
+
+    #[test]
+    fn retry_error_display() {
+        let err = RetryError { attempts: 3, last_error: "timeout" };
+        let msg = format!("{}", err);
+        assert!(msg.contains("3"));
+        assert!(msg.contains("timeout"));
+    }
+
+    #[test]
+    fn timeout_error_display() {
+        let err = TimeoutError { ms: 5000 };
+        assert!(format!("{}", err).contains("5000"));
+    }
 }

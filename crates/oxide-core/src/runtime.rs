@@ -325,4 +325,195 @@ mod tests {
         s += 3;
         assert_eq!(s.get(), 8);
     }
+
+    #[test]
+    fn signal_sub_assign() {
+        let mut s = Signal::new(10);
+        s -= 3;
+        assert_eq!(s.get(), 7);
+    }
+
+    #[test]
+    fn signal_update_in_place() {
+        let s = Signal::new(vec![1, 2, 3]);
+        s.update(|v| v.push(4));
+        assert_eq!(s.get(), vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn signal_display() {
+        let s = Signal::new(42);
+        assert_eq!(format!("{}", s), "42");
+    }
+
+    #[test]
+    fn memo_computes_derived_value() {
+        let count = Signal::new(3);
+        let doubled = crate::memo::memo(move || count.get() * 2);
+        assert_eq!(doubled.get(), 6);
+        count.set(10);
+        assert_eq!(doubled.get(), 20);
+    }
+
+    #[test]
+    fn memo_chains() {
+        let a = Signal::new(2);
+        let b = crate::memo::memo(move || a.get() + 1);
+        let c = crate::memo::memo(move || b.get() * 10);
+        assert_eq!(c.get(), 30);
+        a.set(5);
+        assert_eq!(b.get(), 6);
+        assert_eq!(c.get(), 60);
+    }
+
+    #[test]
+    fn context_provide_and_use() {
+        crate::context::provide_context(42i32);
+        assert_eq!(crate::context::use_context::<i32>(), Some(42));
+        assert_eq!(crate::context::use_context::<String>(), None);
+    }
+
+    #[test]
+    fn context_overwrite() {
+        crate::context::provide_context("first".to_string());
+        assert_eq!(crate::context::use_context::<String>(), Some("first".to_string()));
+        crate::context::provide_context("second".to_string());
+        assert_eq!(crate::context::use_context::<String>(), Some("second".to_string()));
+    }
+
+    #[test]
+    fn multiple_effects_on_one_signal() {
+        let s = Signal::new(0);
+        let sum = Rc::new(Cell::new(0i32));
+        let s1 = sum.clone();
+        let s2 = sum.clone();
+
+        create_effect(move || { s1.set(s1.get() + s.get()); });
+        create_effect(move || { s2.set(s2.get() + s.get() * 10); });
+
+        // Initial: both effects ran once with s=0
+        assert_eq!(sum.get(), 0);
+
+        s.set(1);
+        // Effect 1: sum += 1, Effect 2: sum += 10 → 11
+        assert_eq!(sum.get(), 11);
+    }
+
+    #[test]
+    fn effect_resubscribes_on_condition_change() {
+        let flag = Signal::new(true);
+        let a = Signal::new(1);
+        let b = Signal::new(2);
+        let observed = Rc::new(Cell::new(0));
+        let obs = observed.clone();
+
+        create_effect(move || {
+            let val = if flag.get() { a.get() } else { b.get() };
+            obs.set(val);
+        });
+
+        assert_eq!(observed.get(), 1); // reads a
+
+        flag.set(false);
+        assert_eq!(observed.get(), 2); // now reads b
+
+        a.set(99);
+        // Effect should NOT re-run since it no longer depends on a
+        assert_eq!(observed.get(), 2);
+
+        b.set(42);
+        assert_eq!(observed.get(), 42);
+    }
+
+    #[test]
+    fn nested_batch() {
+        let s = Signal::new(0);
+        let count = Rc::new(Cell::new(0u32));
+        let c = count.clone();
+
+        create_effect(move || {
+            let _ = s.get();
+            c.set(c.get() + 1);
+        });
+
+        assert_eq!(count.get(), 1);
+
+        batch(|| {
+            s.set(1);
+            s.set(2);
+            s.set(3);
+        });
+
+        // Only 1 additional run despite 3 sets
+        assert_eq!(count.get(), 2);
+        assert_eq!(s.get(), 3);
+    }
+
+    #[test]
+    fn watch_skips_initial() {
+        let s = Signal::new(0);
+        let seen = Rc::new(Cell::new(false));
+        let se = seen.clone();
+
+        crate::reactive::watch(move || s.get(), move |_val| {
+            se.set(true);
+        });
+
+        // watch should NOT have fired on initial value
+        assert!(!seen.get());
+
+        s.set(1);
+        assert!(seen.get());
+    }
+
+    #[test]
+    fn watch_receives_new_value() {
+        let s = Signal::new(0);
+        let observed = Rc::new(Cell::new(-1));
+        let obs = observed.clone();
+
+        crate::reactive::watch(move || s.get(), move |val| {
+            obs.set(val);
+        });
+
+        s.set(42);
+        assert_eq!(observed.get(), 42);
+
+        s.set(100);
+        assert_eq!(observed.get(), 100);
+    }
+
+    #[test]
+    fn signal_copy_semantics() {
+        let s = Signal::new(7);
+        let s2 = s; // Copy
+        assert_eq!(s.get(), 7);
+        assert_eq!(s2.get(), 7);
+        s.set(99);
+        assert_eq!(s2.get(), 99); // Same underlying signal
+    }
+
+    #[test]
+    fn hooks_fire_on_signal_operations() {
+        use crate::hooks::{set_hook, clear_hook, HookEvent};
+        use std::sync::atomic::{AtomicU32, Ordering};
+
+        static HOOK_COUNT: AtomicU32 = AtomicU32::new(0);
+
+        fn test_hook(_event: HookEvent) {
+            HOOK_COUNT.fetch_add(1, Ordering::SeqCst);
+        }
+
+        HOOK_COUNT.store(0, Ordering::SeqCst);
+        set_hook(test_hook);
+
+        let s = Signal::new(0);  // SignalCreate
+        let _ = s.get();          // SignalRead
+        s.set(1);                 // SignalWrite + EffectRun (if any)
+
+        clear_hook();
+
+        // At minimum: create + read + write = 3 events
+        assert!(HOOK_COUNT.load(Ordering::SeqCst) >= 3);
+    }
 }
