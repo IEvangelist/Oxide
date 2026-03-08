@@ -3,47 +3,150 @@ use oxide::dom::*;
 use oxide::{Signal, memo};
 use oxide::telemetry;
 use oxide::resiliency;
+use oxide::router::{Router, RouterMode, route, navigate};
+use oxide::components::{self, Severity};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Entry point — mount each demo into its container on the HTML landing page
+// Entry point — SPA with hash-based routing
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[wasm_bindgen(start)]
 pub fn main() {
-    let demos: &[(&str, fn() -> web_sys::Element)] = &[
-        ("demo-counter-live",     demo_counter),
-        ("demo-todo-live",        demo_todo),
-        ("demo-forms-live",       demo_forms),
-        ("demo-fetch-live",       demo_fetch),
-        ("demo-canvas-live",      demo_canvas),
-        ("demo-chart-live",       demo_chart),
-        ("demo-temperature-live", demo_temperature),
-        ("demo-stopwatch-live",   demo_stopwatch),
-        ("demo-mouse-live",       demo_mouse),
-        ("demo-keyboard-live",    demo_keyboard),
-        ("demo-theme-live",       demo_theme),
-        ("demo-notes-live",       demo_notes),
-        ("demo-animation-live",   demo_animation),
-        ("demo-modal-live",       demo_modal),
-        ("demo-dnd-live",         demo_dnd),
-        ("demo-clipboard-live",   demo_clipboard),
-        ("demo-telemetry-live",   demo_telemetry),
-        ("demo-resiliency-live",  demo_resiliency),
-    ];
-    for &(id, builder) in demos {
-        if let Some(container) = query_selector(&format!("#{}", id)) {
-            container.append_child(&builder()).ok();
-        }
-    }
+    mount("#app", || {
+        let router = Router::new(RouterMode::Hash, &[
+            route("/",                    page_home),
+            route("/demos",               page_demos),
+            route("/components",          page_catalog),
+            route("/components/button",   pg_button),
+            route("/components/input",    pg_input),
+            route("/components/textarea", pg_textarea),
+            route("/components/select",   pg_select),
+            route("/components/checkbox", pg_checkbox),
+            route("/components/card",     pg_card),
+            route("/components/alert",    pg_alert),
+            route("/components/modal",    pg_modal),
+            route("/components/spinner",  pg_spinner),
+            route("/components/progress", pg_progress),
+            route("/components/tabs",     pg_tabs),
+            route("/components/badge",    pg_badge),
+            route("/components/divider",  pg_divider),
+            route("/components/skeleton", pg_skeleton),
+        ]);
 
-    // Scroll-to-top button on every page
-    body().append_child(&oxide::components::scroll_to_top(300)).ok();
+        build_app_shell(router)
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Helpers
+// App Shell — header nav + router outlet
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn build_app_shell(router: Router) -> web_sys::Element {
+    let shell = create_element("div");
+    set_attribute(&shell, "class", "app-shell");
+
+    // Header
+    let header = create_element("header");
+    set_attribute(&header, "class", "app-header");
+    let header_container = create_element("div");
+    set_attribute(&header_container, "class", "container");
+
+    // Logo
+    let logo = create_element("div");
+    set_attribute(&logo, "class", "logo");
+    let logo_a = create_element("a");
+    set_attribute(&logo_a, "href", "index.html");
+    let logo_emoji = create_element("span");
+    set_attribute(&logo_emoji, "class", "logo-emoji");
+    append_text(&logo_emoji, "\u{1f525}");
+    append_node(&logo_a, &logo_emoji);
+    let logo_text = create_element("span");
+    set_attribute(&logo_text, "class", "gradient-text");
+    append_text(&logo_text, "Oxide");
+    append_node(&logo_a, &logo_text);
+    append_node(&logo, &logo_a);
+    append_node(&header_container, &logo);
+
+    // Hamburger toggle
+    let nav_open = signal(false);
+    let toggle_btn = create_element("button");
+    set_attribute(&toggle_btn, "class", "nav-toggle");
+    set_attribute(&toggle_btn, "aria-label", "Menu");
+    for _ in 0..3 {
+        let s = create_element("span");
+        append_node(&toggle_btn, &s);
+    }
+    add_event_listener(&toggle_btn, "click", move |_| {
+        nav_open.set(!nav_open.get());
+    });
+    append_node(&header_container, &toggle_btn);
+
+    // Nav
+    let nav = create_element("nav");
+    set_attribute(&nav, "class", "app-nav");
+
+    let nav_ref = nav.clone();
+    create_effect(move || {
+        if nav_open.get() {
+            nav_ref.class_list().add_1("open").ok();
+        } else {
+            nav_ref.class_list().remove_1("open").ok();
+        }
+    });
+
+    let nav_items: &[(&str, &str)] = &[
+        ("Home", "/"),
+        ("Demos", "/demos"),
+        ("Components", "/components"),
+    ];
+    for &(label, path) in nav_items {
+        let a = create_element("a");
+        append_text(&a, label);
+        let p = path.to_string();
+        let no = nav_open;
+        add_event_listener(&a, "click", move |_| {
+            navigate(&p);
+            no.set(false);
+        });
+        append_node(&nav, &a);
+    }
+
+    // Docs link
+    let docs_link = create_element("a");
+    set_attribute(&docs_link, "href", "docs.html");
+    append_text(&docs_link, "Docs");
+    append_node(&nav, &docs_link);
+
+    // GitHub link
+    let gh_link = create_element("a");
+    set_attribute(&gh_link, "href", "https://github.com/IEvangelist/Oxide");
+    set_attribute(&gh_link, "target", "_blank");
+    set_attribute(&gh_link, "rel", "noopener");
+    set_attribute(&gh_link, "class", "gh-btn");
+    append_text(&gh_link, "GitHub");
+    append_node(&nav, &gh_link);
+
+    append_node(&header_container, &nav);
+    append_node(&header, &header_container);
+    append_node(&shell, &header);
+
+    // Content area with router outlet
+    let content = create_element("div");
+    set_attribute(&content, "class", "app-content");
+    append_node(&content, &router.view());
+    append_node(&shell, &content);
+
+    // Scroll-to-top
+    let b = body();
+    b.append_child(&components::scroll_to_top(300)).ok();
+
+    shell
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Helpers (kept from original)
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn el(tag: &str, class: &str, children: &[&web_sys::Element]) -> web_sys::Element {
@@ -64,7 +167,810 @@ fn text_el(tag: &str, text: &str) -> web_sys::Element {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 1. Counter
+// Page: Home
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn page_home() -> web_sys::Element {
+    let page = el("div", "pg-page", &[]);
+
+    let hero = el("div", "home-hero", &[]);
+    let h1 = text_el("h1", "\u{1f525} Oxide Playground");
+    append_node(&hero, &h1);
+    let sub = text_el("p", "Explore interactive demos and component playgrounds — all running in Rust compiled to WebAssembly.");
+    append_node(&hero, &sub);
+
+    let cards = el("div", "home-cards", &[]);
+
+    // Demos card
+    let demo_card = el("div", "home-card", &[]);
+    let demo_h3 = text_el("h3", "18 Interactive Demos \u{2192}");
+    let demo_p = text_el("p", "Counter, Todo, Canvas, Charts, Drag & Drop and more — all Rust/WASM.");
+    append_node(&demo_card, &demo_h3);
+    append_node(&demo_card, &demo_p);
+    add_event_listener(&demo_card, "click", |_| { navigate("/demos"); });
+    append_node(&cards, &demo_card);
+
+    // Components card
+    let comp_card = el("div", "home-card", &[]);
+    let comp_h3 = text_el("h3", "Component Library \u{2192}");
+    let comp_p = text_el("p", "Buttons, Inputs, Modals, Tabs, Progress and more with live playgrounds.");
+    append_node(&comp_card, &comp_h3);
+    append_node(&comp_card, &comp_p);
+    add_event_listener(&comp_card, "click", |_| { navigate("/components"); });
+    append_node(&cards, &comp_card);
+
+    append_node(&hero, &cards);
+    append_node(&page, &hero);
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Page: Demos — all 18 demos on one scrollable page
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn page_demos() -> web_sys::Element {
+    let page = el("div", "pg-page", &[]);
+
+    let h2 = text_el("h2", "Interactive Demos");
+    append_node(&page, &h2);
+    let desc = el("p", "pg-desc", &[]);
+    append_text(&desc, "All 18 demos running in Rust \u{2192} WebAssembly. Zero JavaScript.");
+    append_node(&page, &desc);
+
+    let demos: &[(&str, fn() -> web_sys::Element)] = &[
+        ("\u{1f522} Counter",           demo_counter),
+        ("\u{1f321}\u{fe0f} Temperature Converter", demo_temperature),
+        ("\u{2705} Todo List",          demo_todo),
+        ("\u{23f1}\u{fe0f} Stopwatch",  demo_stopwatch),
+        ("\u{1f4dd} Form Playground",   demo_forms),
+        ("\u{1f310} Fetch API",         demo_fetch),
+        ("\u{1f5b1}\u{fe0f} Mouse Tracker", demo_mouse),
+        ("\u{2328}\u{fe0f} Keyboard Events", demo_keyboard),
+        ("\u{1f3a8} Canvas Drawing",    demo_canvas),
+        ("\u{1f3a8} Theme Toggle",      demo_theme),
+        ("\u{1f4dd} Persistent Notes",  demo_notes),
+        ("\u{1f3ac} Bouncing Ball",     demo_animation),
+        ("\u{1f4ca} SVG Bar Chart",     demo_chart),
+        ("\u{1fa9f} Modal Dialog",      demo_modal),
+        ("\u{1fac3} Drag & Drop",       demo_dnd),
+        ("\u{1f4cb} Clipboard",         demo_clipboard),
+        ("\u{1f4e1} Telemetry",         demo_telemetry),
+        ("\u{1f6e1}\u{fe0f} Resiliency", demo_resiliency),
+    ];
+
+    for &(name, builder) in demos {
+        let section = el("div", "demo-section", &[]);
+        let h3 = text_el("h3", name);
+        append_node(&section, &h3);
+        append_node(&section, &builder());
+        append_node(&page, &section);
+    }
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Page: Component Catalog
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn page_catalog() -> web_sys::Element {
+    let page = el("div", "pg-page", &[]);
+    let h2 = text_el("h2", "Component Library");
+    append_node(&page, &h2);
+    let desc = el("p", "pg-desc", &[]);
+    append_text(&desc, "Pre-built Oxide components with interactive playgrounds. Click any card to explore.");
+    append_node(&page, &desc);
+
+    let grid = el("div", "catalog-grid", &[]);
+
+    let items: &[(&str, &str, &str, &str)] = &[
+        ("\u{1f518}", "Button",    "Versatile button with variants, sizes, and loading states.", "/components/button"),
+        ("\u{270f}\u{fe0f}",  "TextInput", "Text input with label, validation, and signal binding.",   "/components/input"),
+        ("\u{1f4c4}", "TextArea",  "Multi-line text input with label and signal binding.",       "/components/textarea"),
+        ("\u{1f53d}", "Select",    "Dropdown select with label and signal binding.",             "/components/select"),
+        ("\u{2611}\u{fe0f}",  "Checkbox",  "Checkbox with label and boolean signal binding.",          "/components/checkbox"),
+        ("\u{1f4c7}", "Card",      "Container card with title, body, and optional footer.",      "/components/card"),
+        ("\u{1f514}", "Alert",     "Notification alert with severity levels.",                   "/components/alert"),
+        ("\u{1fa9f}", "Modal",     "Overlay modal dialog controlled by signals.",                "/components/modal"),
+        ("\u{1f504}", "Spinner",   "Rotating loading indicator with optional text.",             "/components/spinner"),
+        ("\u{1f4ca}", "Progress",  "Animated progress bar driven by a signal.",                  "/components/progress"),
+        ("\u{1f4c1}", "Tabs",      "Tabbed interface with ARIA-compliant panels.",               "/components/tabs"),
+        ("\u{1f3f7}\u{fe0f}",  "Badge",     "Colored label badge with severity variants.",              "/components/badge"),
+        ("\u{2796}", "Divider",   "Simple horizontal divider element.",                         "/components/divider"),
+        ("\u{1f4a0}", "Skeleton",  "Shimmer-animated loading placeholder.",                      "/components/skeleton"),
+    ];
+
+    for &(icon, name, desc_text, path) in items {
+        let card = el("div", "catalog-card", &[]);
+        let ic = el("div", "cc-icon", &[]);
+        append_text(&ic, icon);
+        append_node(&card, &ic);
+        let nm = el("div", "cc-name", &[]);
+        append_text(&nm, name);
+        append_node(&card, &nm);
+        let ds = el("div", "cc-desc", &[]);
+        append_text(&ds, desc_text);
+        append_node(&card, &ds);
+        let p = path.to_string();
+        add_event_listener(&card, "click", move |_| { navigate(&p); });
+        append_node(&grid, &card);
+    }
+
+    append_node(&page, &grid);
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Playground helper: builds a standard playground page layout
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_shell(title: &str, description: &str) -> (web_sys::Element, web_sys::Element, web_sys::Element, web_sys::Element) {
+    let page = el("div", "pg-page", &[]);
+
+    // Back link
+    let back = el("a", "pg-back", &[]);
+    append_text(&back, "\u{2190} Components");
+    add_event_listener(&back, "click", |_| { navigate("/components"); });
+    append_node(&page, &back);
+
+    let h2 = text_el("h2", title);
+    append_node(&page, &h2);
+    let desc = el("p", "pg-desc", &[]);
+    append_text(&desc, description);
+    append_node(&page, &desc);
+
+    let layout = el("div", "pg-layout", &[]);
+    let preview = el("div", "pg-preview", &[]);
+    let controls = el("div", "pg-controls", &[]);
+    append_node(&layout, &preview);
+    append_node(&layout, &controls);
+    append_node(&page, &layout);
+
+    (page, preview, controls, layout)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Button
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_button() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Button",
+        "Versatile button with multiple variants, sizes, and states.",
+    );
+
+    let label = signal("Click me".to_string());
+    let variant = signal("primary".to_string());
+    let size = signal("medium".to_string());
+    let loading = signal(false);
+    let disabled = signal(false);
+
+    // Controls
+    append_node(&controls, &components::text_input("Label").placeholder("Button text").bind(label).build());
+    append_node(&controls, &components::select("Variant", &[
+        ("primary", "Primary"), ("outline", "Outline"), ("danger", "Danger"), ("ghost", "Ghost"), ("default", "Default"),
+    ], variant));
+    append_node(&controls, &components::select("Size", &[
+        ("small", "Small"), ("medium", "Medium"), ("large", "Large"),
+    ], size));
+    append_node(&controls, &components::checkbox("Loading", loading));
+    append_node(&controls, &components::checkbox("Disabled", disabled));
+
+    // Preview
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        let l = label.get();
+        let mut b = components::button(&l);
+        match variant.get().as_str() {
+            "primary"   => { b = b.primary(); }
+            "outline"   => { b = b.outline(); }
+            "danger"    => { b = b.danger(); }
+            "ghost"     => { b = b.ghost(); }
+            _           => {}
+        }
+        match size.get().as_str() {
+            "small" => { b = b.small(); }
+            "large" => { b = b.large(); }
+            _       => {}
+        }
+        b = b.loading(loading.get());
+        b = b.disabled(disabled.get());
+        append_node(&preview_ref, &b.build());
+    });
+
+    // Code block
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let l = label.get();
+        let v = variant.get();
+        let s = size.get();
+        let ld = loading.get();
+        let dis = disabled.get();
+
+        let mut chain = format!("button(\"{}\")", l);
+        chain.push_str(&format!(".{}()", v));
+        if s != "medium" { chain.push_str(&format!(".{}()", s)); }
+        if ld { chain.push_str(".loading(true)"); }
+        if dis { chain.push_str(".disabled(true)"); }
+        chain.push_str(".build()");
+        code_ref.set_text_content(Some(&chain));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: TextInput
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_input() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "TextInput",
+        "Text input with label, placeholder, validation, and signal binding.",
+    );
+
+    let label = signal("Email".to_string());
+    let placeholder = signal("you@example.com".to_string());
+    let input_type = signal("text".to_string());
+    let required = signal(false);
+    let error_msg = signal(String::new());
+    let bound_value = signal(String::new());
+
+    // Controls
+    append_node(&controls, &components::text_input("Label").placeholder("Input label").bind(label).build());
+    append_node(&controls, &components::text_input("Placeholder").placeholder("Placeholder text").bind(placeholder).build());
+    append_node(&controls, &components::select("Type", &[
+        ("text", "Text"), ("email", "Email"), ("password", "Password"), ("number", "Number"),
+    ], input_type));
+    append_node(&controls, &components::checkbox("Required", required));
+    append_node(&controls, &components::text_input("Error message").placeholder("Leave blank for none").bind(error_msg).build());
+
+    // Preview
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        let mut b = components::text_input(&label.get())
+            .placeholder(&placeholder.get())
+            .input_type(&input_type.get())
+            .bind(bound_value);
+        if required.get() { b = b.required(); }
+        let err = error_msg.get();
+        if !err.is_empty() { b = b.error(&err); }
+        set_style(&preview_ref, "flex-direction", "column");
+        set_style(&preview_ref, "align-items", "stretch");
+        append_node(&preview_ref, &b.build());
+    });
+
+    // Code block
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let l = label.get();
+        let p = placeholder.get();
+        let t = input_type.get();
+        let r = required.get();
+        let e = error_msg.get();
+        let mut chain = format!("text_input(\"{}\")", l);
+        chain.push_str(&format!("\n    .placeholder(\"{}\")", p));
+        if t != "text" { chain.push_str(&format!("\n    .input_type(\"{}\")", t)); }
+        chain.push_str("\n    .bind(value_signal)");
+        if r { chain.push_str("\n    .required()"); }
+        if !e.is_empty() { chain.push_str(&format!("\n    .error(\"{}\")", e)); }
+        chain.push_str("\n    .build()");
+        code_ref.set_text_content(Some(&chain));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: TextArea
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_textarea() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "TextArea",
+        "Multi-line text input with label and reactive signal binding.",
+    );
+
+    let label = signal("Comment".to_string());
+    let value = signal("Type something here...".to_string());
+
+    append_node(&controls, &components::text_input("Label").placeholder("TextArea label").bind(label).build());
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        set_style(&preview_ref, "flex-direction", "column");
+        set_style(&preview_ref, "align-items", "stretch");
+        append_node(&preview_ref, &components::textarea(&label.get(), value));
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let l = label.get();
+        code_ref.set_text_content(Some(&format!(
+            "let value = signal(String::new());\ntextarea(\"{}\", value)", l
+        )));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Select
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_select() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Select",
+        "Dropdown select with label, options, and signal binding.",
+    );
+
+    let label = signal("Country".to_string());
+    let selected = signal("us".to_string());
+
+    append_node(&controls, &components::text_input("Label").placeholder("Select label").bind(label).build());
+
+    // Show selected value
+    let sel_display = el("div", "mono", &[]);
+    let sel_ref = sel_display.clone();
+    create_effect(move || {
+        sel_ref.set_text_content(Some(&format!("Selected: {}", selected.get())));
+    });
+    append_node(&controls, &sel_display);
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        set_style(&preview_ref, "flex-direction", "column");
+        set_style(&preview_ref, "align-items", "stretch");
+        append_node(&preview_ref, &components::select(&label.get(), &[
+            ("us", "United States"),
+            ("uk", "United Kingdom"),
+            ("ca", "Canada"),
+            ("de", "Germany"),
+            ("jp", "Japan"),
+        ], selected));
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let l = label.get();
+        code_ref.set_text_content(Some(&format!(
+            "let value = signal(\"us\".to_string());\nselect(\"{}\", &[\n    (\"us\", \"United States\"),\n    (\"uk\", \"United Kingdom\"),\n    (\"ca\", \"Canada\"),\n], value)", l
+        )));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Checkbox
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_checkbox() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Checkbox",
+        "Checkbox with label and boolean signal binding.",
+    );
+
+    let label = signal("I agree to the terms".to_string());
+    let checked = signal(false);
+
+    append_node(&controls, &components::text_input("Label text").placeholder("Checkbox label").bind(label).build());
+
+    // Show checked state
+    let state_display = el("div", "mono", &[]);
+    let state_ref = state_display.clone();
+    create_effect(move || {
+        state_ref.set_text_content(Some(&format!("Checked: {}", checked.get())));
+    });
+    append_node(&controls, &state_display);
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        append_node(&preview_ref, &components::checkbox(&label.get(), checked));
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let l = label.get();
+        code_ref.set_text_content(Some(&format!(
+            "let checked = signal(false);\ncheckbox(\"{}\", checked)", l
+        )));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Card
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_card() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Card",
+        "Container card with title, body content, and optional footer.",
+    );
+
+    let title = signal("Settings".to_string());
+    let show_footer = signal(true);
+
+    append_node(&controls, &components::text_input("Title").placeholder("Card title").bind(title).build());
+    append_node(&controls, &components::checkbox("Show footer", show_footer));
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        set_style(&preview_ref, "flex-direction", "column");
+        set_style(&preview_ref, "align-items", "stretch");
+        let body = text_el("p", "Configure your preferences and settings here.");
+        let mut builder = components::card(&title.get()).body(body);
+        if show_footer.get() {
+            builder = builder.footer(components::button("Save").primary().build());
+        }
+        append_node(&preview_ref, &builder.build());
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let t = title.get();
+        let sf = show_footer.get();
+        let mut s = format!("card(\"{}\")\n    .body(content)", t);
+        if sf { s.push_str("\n    .footer(button(\"Save\").primary().build())"); }
+        s.push_str("\n    .build()");
+        code_ref.set_text_content(Some(&s));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Alert
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_alert() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Alert",
+        "Notification alert with multiple severity levels and dismissible option.",
+    );
+
+    let message = signal("Operation completed successfully!".to_string());
+    let severity = signal("success".to_string());
+    let dismissible = signal(false);
+    let alert_visible = signal(true);
+
+    append_node(&controls, &components::text_input("Message").placeholder("Alert message").bind(message).build());
+    append_node(&controls, &components::select("Severity", &[
+        ("success", "Success"), ("warning", "Warning"), ("error", "Error"), ("info", "Info"),
+    ], severity));
+    append_node(&controls, &components::checkbox("Dismissible", dismissible));
+
+    // Reset button to show alert again after dismiss
+    let reset_btn = components::button("Reset Alert").small().build();
+    add_event_listener(&reset_btn, "click", move |_| { alert_visible.set(true); });
+    append_node(&controls, &reset_btn);
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        set_style(&preview_ref, "flex-direction", "column");
+        set_style(&preview_ref, "align-items", "stretch");
+        let mut b = components::alert(&message.get());
+        match severity.get().as_str() {
+            "success" => { b = b.success(); }
+            "warning" => { b = b.warning(); }
+            "error"   => { b = b.error(); }
+            _         => { b = b.info(); }
+        }
+        if dismissible.get() {
+            b = b.dismissible(alert_visible);
+        }
+        append_node(&preview_ref, &b.build());
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let m = message.get();
+        let s = severity.get();
+        let d = dismissible.get();
+        let mut chain = format!("alert(\"{}\")\n    .{}()", m, s);
+        if d { chain.push_str("\n    .dismissible(visible_signal)"); }
+        chain.push_str("\n    .build()");
+        code_ref.set_text_content(Some(&chain));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Modal
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_modal() -> web_sys::Element {
+    let (page, preview, _controls, _layout) = pg_shell(
+        "Modal",
+        "Overlay modal dialog controlled by a boolean signal. Click the button to open it.",
+    );
+
+    let is_open = signal(false);
+
+    // Preview: button to open + modal
+    let open_btn = components::button("Open Modal").primary().build();
+    add_event_listener(&open_btn, "click", move |_| { is_open.set(true); });
+    append_node(&preview, &open_btn);
+
+    let modal_body = text_el("p", "This modal is rendered and controlled entirely by Rust signals compiled to WASM.");
+    let modal_el = components::modal(is_open)
+        .title("Oxide Modal")
+        .body(modal_body)
+        .build();
+    append_node(&preview, &modal_el);
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    code.set_text_content(Some(
+        "let is_open = signal(false);\n\nmodal(is_open)\n    .title(\"Oxide Modal\")\n    .body(content)\n    .build()"
+    ));
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Spinner
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_spinner() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Spinner",
+        "Rotating loading indicator, with or without text.",
+    );
+
+    let show_text = signal(true);
+
+    append_node(&controls, &components::checkbox("Show text", show_text));
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        if show_text.get() {
+            append_node(&preview_ref, &components::spinner_with_text("Loading..."));
+        } else {
+            append_node(&preview_ref, &components::spinner());
+        }
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        if show_text.get() {
+            code_ref.set_text_content(Some("spinner_with_text(\"Loading...\")"));
+        } else {
+            code_ref.set_text_content(Some("spinner()"));
+        }
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Progress
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_progress() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Progress",
+        "Animated progress bar driven by a signal value (0–100).",
+    );
+
+    let value = signal(65.0f64);
+    let range_str = signal("65".to_string());
+
+    // Range slider
+    let slider_wrap = el("div", "col", &[]);
+    let slider_label = el("div", "", &[]);
+    let slider_label_ref = slider_label.clone();
+    create_effect(move || {
+        slider_label_ref.set_text_content(Some(&format!("Value: {:.0}%", value.get())));
+    });
+    append_node(&slider_wrap, &slider_label);
+    let slider = create_element("input");
+    set_attribute(&slider, "type", "range");
+    set_attribute(&slider, "min", "0");
+    set_attribute(&slider, "max", "100");
+    set_attribute(&slider, "value", "65");
+    let rs = range_str;
+    add_event_listener(&slider, "input", move |e| {
+        let v = event_target_value(&e);
+        rs.set(v.clone());
+        if let Ok(n) = v.parse::<f64>() {
+            value.set(n);
+        }
+    });
+    append_node(&slider_wrap, &slider);
+    append_node(&controls, &slider_wrap);
+
+    // Preview
+    set_style(&preview, "flex-direction", "column");
+    set_style(&preview, "align-items", "stretch");
+    append_node(&preview, &components::progress(value));
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        code_ref.set_text_content(Some(&format!(
+            "let value = signal({:.0}.0);\nprogress(value)", value.get()
+        )));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Tabs
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_tabs() -> web_sys::Element {
+    let (page, preview, _controls, _layout) = pg_shell(
+        "Tabs",
+        "Tabbed interface with ARIA-compliant panels. Each tab renders its own content.",
+    );
+
+    set_style(&preview, "flex-direction", "column");
+    set_style(&preview, "align-items", "stretch");
+
+    append_node(&preview, &components::tabs(&[
+        ("Profile", || text_el("div", "User profile settings and personal information.")),
+        ("Settings", || text_el("div", "Application settings, notifications, and preferences.")),
+        ("Billing", || text_el("div", "Subscription plans, payment methods, and invoices.")),
+    ]));
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    code.set_text_content(Some(
+        "tabs(&[\n    (\"Profile\",  || view! { <div>\"Profile content\"</div> }),\n    (\"Settings\", || view! { <div>\"Settings content\"</div> }),\n    (\"Billing\",  || view! { <div>\"Billing content\"</div> }),\n])"
+    ));
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Badge
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_badge() -> web_sys::Element {
+    let (page, preview, controls, _layout) = pg_shell(
+        "Badge",
+        "Small colored label badge with severity-based variants.",
+    );
+
+    let text = signal("Active".to_string());
+    let severity_str = signal("success".to_string());
+
+    append_node(&controls, &components::text_input("Text").placeholder("Badge text").bind(text).build());
+    append_node(&controls, &components::select("Severity", &[
+        ("success", "Success"), ("warning", "Warning"), ("error", "Error"), ("info", "Info"),
+    ], severity_str));
+
+    let preview_ref = preview.clone();
+    create_effect(move || {
+        clear_children(&preview_ref);
+        let sev = match severity_str.get().as_str() {
+            "success" => Severity::Success,
+            "warning" => Severity::Warning,
+            "error"   => Severity::Error,
+            _         => Severity::Info,
+        };
+        append_node(&preview_ref, &components::badge(&text.get(), sev));
+    });
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    let code_ref = code.clone();
+    create_effect(move || {
+        let t = text.get();
+        let s = severity_str.get();
+        let sev_name = match s.as_str() {
+            "success" => "Success",
+            "warning" => "Warning",
+            "error"   => "Error",
+            _         => "Info",
+        };
+        code_ref.set_text_content(Some(&format!(
+            "badge(\"{}\", Severity::{})", t, sev_name
+        )));
+    });
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Divider
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_divider() -> web_sys::Element {
+    let (page, preview, _controls, _layout) = pg_shell(
+        "Divider",
+        "A simple horizontal divider for separating content sections.",
+    );
+
+    set_style(&preview, "flex-direction", "column");
+    set_style(&preview, "align-items", "stretch");
+    set_style(&preview, "gap", "1rem");
+
+    append_node(&preview, &text_el("p", "Content above the divider."));
+    append_node(&preview, &components::divider());
+    append_node(&preview, &text_el("p", "Content below the divider."));
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    code.set_text_content(Some("divider()"));
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Component Playground: Skeleton
+// ═══════════════════════════════════════════════════════════════════════════
+
+fn pg_skeleton() -> web_sys::Element {
+    let (page, preview, _controls, _layout) = pg_shell(
+        "Skeleton",
+        "Shimmer-animated loading placeholder for content that is still loading.",
+    );
+
+    set_style(&preview, "flex-direction", "column");
+    set_style(&preview, "align-items", "stretch");
+    set_style(&preview, "gap", "0.75rem");
+
+    append_node(&preview, &components::skeleton("100%", "20px"));
+    append_node(&preview, &components::skeleton("80%", "20px"));
+    append_node(&preview, &components::skeleton("60%", "20px"));
+    append_node(&preview, &components::skeleton("200px", "100px"));
+
+    let code = create_element("pre");
+    set_attribute(&code, "class", "pg-code");
+    code.set_text_content(Some(
+        "skeleton(\"100%\", \"20px\")\nskeleton(\"80%\", \"20px\")\nskeleton(\"200px\", \"100px\")"
+    ));
+    append_node(&page, &code);
+
+    page
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. Counter (original demo — unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn demo_counter() -> web_sys::Element {

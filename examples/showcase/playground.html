@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Playground — Oxide</title>
-    <meta name="description" content="Interactive playground: 18 demos running in Rust compiled to WebAssembly." />
+    <meta name="description" content="Interactive playground: Oxide SPA with demos and component playgrounds." />
     <style>
         /* ═══════ RESET & CSS VARIABLES ═══════ */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -30,70 +30,58 @@
         /* ═══════ UTILITY ═══════ */
         .container { max-width: var(--max-w); margin: 0 auto; padding: 0 2rem; }
         .gradient-text { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); font-weight: 600; margin-bottom: 0.5rem; }
-        .section-title { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.75rem; }
-        .section-sub { color: var(--fg2); font-size: 1.05rem; max-width: 600px; line-height: 1.7; }
 
-        /* ═══════ ANIMATIONS ═══════ */
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .fade-in { opacity: 0; animation: fadeUp 0.7s ease-out forwards; }
-        .fade-in.d1 { animation-delay: 0.1s; } .fade-in.d2 { animation-delay: 0.2s; }
-        .fade-in.d3 { animation-delay: 0.3s; } .fade-in.d4 { animation-delay: 0.4s; }
-        .fade-in.d5 { animation-delay: 0.5s; } .fade-in.d6 { animation-delay: 0.6s; }
-        .fade-in.d7 { animation-delay: 0.7s; } .fade-in.d8 { animation-delay: 0.8s; }
-
-        /* ═══════ HEADER / NAV ═══════ */
-        .site-header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(10,10,10,0.8); backdrop-filter: blur(16px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .site-header .container { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+        /* ═══════ APP SHELL ═══════ */
+        .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(10,10,10,0.85); backdrop-filter: blur(16px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .app-header .container { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+        .app-nav { display: flex; align-items: center; gap: 1.5rem; }
+        .app-nav a { color: var(--fg2); font-size: 0.85rem; font-weight: 500; transition: color 0.2s; cursor: pointer; }
+        .app-nav a:hover { color: var(--fg); text-decoration: none; }
+        .app-nav a.active { color: var(--accent); }
+        .app-content { flex: 1; padding-top: 80px; padding-bottom: 3rem; }
         .logo { font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.4rem; }
         .logo a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.4rem; }
         .logo-emoji { font-size: 1.4rem; -webkit-text-fill-color: initial; }
-        .header-nav { display: flex; align-items: center; gap: 1.5rem; }
-        .header-nav a { color: var(--fg2); font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
-        .header-nav a:hover { color: var(--fg); text-decoration: none; }
-        .header-nav a.active { color: var(--accent); }
         .gh-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid var(--fg3); color: var(--fg) !important; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; }
         .gh-btn:hover { border-color: var(--accent); color: var(--accent) !important; text-decoration: none; }
-        .gh-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
         /* Hamburger menu */
-        .nav-toggle-cb { display: none; }
-        .nav-toggle { display: none; cursor: pointer; flex-direction: column; gap: 4px; z-index: 101; }
+        .nav-toggle { display: none; cursor: pointer; flex-direction: column; gap: 4px; z-index: 101; background: none; border: none; padding: 4px; }
         .nav-toggle span { display: block; width: 20px; height: 2px; background: var(--fg); transition: all 0.3s; }
 
-        /* ═══════ PAGE HERO ═══════ */
-        .page-hero { padding: 120px 0 4rem; }
-        .page-hero h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 900; line-height: 1.1; margin-bottom: 0.75rem; }
-        .page-hero p { color: var(--fg2); font-size: 1.1rem; max-width: 600px; }
+        /* ═══════ PLAYGROUND PAGE LAYOUT ═══════ */
+        .pg-page { max-width: var(--max-w); margin: 0 auto; padding: 0 2rem; }
+        .pg-page h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .pg-desc { color: var(--fg2); font-size: 1rem; margin-bottom: 1.5rem; max-width: 600px; }
+        .pg-back { display: inline-block; color: var(--fg2); font-size: 0.85rem; margin-bottom: 1rem; cursor: pointer; transition: color 0.2s; }
+        .pg-back:hover { color: var(--accent); text-decoration: none; }
+        .pg-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .pg-preview { padding: 2rem; border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center; min-height: 150px; }
+        .pg-controls { display: flex; flex-direction: column; gap: 1rem; }
+        .pg-code { background: #0d1117; border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 1.25rem; font-size: 0.82rem; line-height: 1.6; color: #c9d1d9; overflow-x: auto; }
 
-        /* ═══════ SYNTAX HIGHLIGHTING ═══════ */
-        .kw { color: #ff7b72; } .fn { color: #d2a8ff; } .str { color: #a5d6ff; } .num { color: #79c0ff; }
-        .cmt { color: #8b949e; } .type { color: #ffa657; } .tag-name { color: #7ee787; }
-        .attr { color: #79c0ff; } .punct { color: #8b949e; }
+        /* ═══════ COMPONENT CATALOG ═══════ */
+        .catalog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .catalog-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 1.25rem; cursor: pointer; transition: all 0.25s; }
+        .catalog-card:hover { border-color: rgba(249,115,22,0.3); transform: translateY(-3px); box-shadow: 0 4px 20px rgba(249,115,22,0.08); }
+        .catalog-card .cc-icon { font-size: 1.6rem; margin-bottom: 0.4rem; }
+        .catalog-card .cc-name { font-size: 1rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .catalog-card .cc-desc { font-size: 0.8rem; color: var(--fg2); line-height: 1.5; }
 
-        /* ═══════ FEATURED DEMOS ═══════ */
-        .playground-section { padding: 0 0 4rem; }
-        .demo-featured { display: flex; flex-direction: column; gap: 2.5rem; }
-        .demo-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; overflow: hidden; transition: border-color 0.3s; }
-        .demo-card:hover { border-color: rgba(249,115,22,0.2); }
-        .demo-code-panel { background: #0d1117; padding: 1.5rem; border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; }
-        .demo-code-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg3); margin-bottom: 0.75rem; font-weight: 600; }
-        .demo-code-panel pre { font-size: 0.8rem; line-height: 1.6; color: #c9d1d9; flex: 1; }
-        .demo-live-panel { padding: 1.5rem; display: flex; flex-direction: column; }
-        .demo-live-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg3); margin-bottom: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
-        .live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse-dot 2s infinite; }
-        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .demo-live-panel > div { flex: 1; }
+        /* ═══════ DEMOS PAGE ═══════ */
+        .demo-section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+        .demo-section h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
 
-        /* ═══════ MINI DEMOS GRID ═══════ */
-        .more-demos-heading { margin-top: 4rem; margin-bottom: 1.5rem; }
-        .more-demos-heading h3 { font-size: 1.3rem; font-weight: 700; }
-        .more-demos-heading p { color: var(--fg2); font-size: 0.9rem; }
-        .mini-demos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-        .mini-demo-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 1rem; transition: all 0.3s; }
-        .mini-demo-card:hover { border-color: rgba(249,115,22,0.2); transform: translateY(-2px); }
-        .mini-demo-label { font-size: 0.75rem; color: var(--fg3); margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-        .mini-demo { min-height: 100px; }
+        /* ═══════ HOME PAGE ═══════ */
+        .home-hero { text-align: center; padding: 4rem 0 3rem; }
+        .home-hero h1 { font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 900; margin-bottom: 0.75rem; }
+        .home-hero p { color: var(--fg2); font-size: 1.1rem; max-width: 600px; margin: 0 auto 2rem; }
+        .home-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 700px; margin: 0 auto; }
+        .home-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 2rem; cursor: pointer; transition: all 0.25s; text-align: left; }
+        .home-card:hover { border-color: rgba(249,115,22,0.3); transform: translateY(-2px); }
+        .home-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .home-card p { color: var(--fg2); font-size: 0.9rem; }
 
         /* ═══════ SHARED COMPONENT STYLES ═══════ */
         button, .btn { padding: 0.45rem 1rem; font-size: 0.85rem; border: 1px solid var(--fg3); border-radius: 6px; background: var(--bg3); color: var(--fg); cursor: pointer; transition: all 0.15s; font-family: var(--font); }
@@ -104,7 +92,7 @@
         .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
         .btn-danger { border-color: var(--accent2); color: var(--accent2); }
         .btn-danger:hover { background: var(--accent2); color: white; }
-        input[type="text"], input[type="number"], input[type="url"], textarea, select { background: var(--bg); border: 1px solid var(--fg3); border-radius: 6px; padding: 0.45rem 0.7rem; color: var(--fg); font-family: var(--font); font-size: 0.85rem; outline: none; transition: border-color 0.15s; }
+        input[type="text"], input[type="number"], input[type="url"], input[type="email"], input[type="password"], textarea, select { background: var(--bg); border: 1px solid var(--fg3); border-radius: 6px; padding: 0.45rem 0.7rem; color: var(--fg); font-family: var(--font); font-size: 0.85rem; outline: none; transition: border-color 0.15s; }
         input:focus, textarea:focus, select:focus { border-color: var(--accent); }
         textarea { resize: vertical; }
         input[type="range"] { width: 100%; accent-color: var(--accent); }
@@ -175,22 +163,11 @@
         .clip-toast { color: var(--green); font-size: 0.8rem; margin-left: 0.5rem; opacity: 0; transition: opacity 0.3s; }
         .clip-toast.show { opacity: 1; }
 
-        /* ═══════ FOOTER ═══════ */
-        .site-footer { padding: 4rem 0 3rem; border-top: 1px solid rgba(255,255,255,0.04); text-align: center; }
-        .footer-brand { font-size: 1rem; color: var(--fg2); margin-bottom: 1rem; }
-        .footer-links { display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; }
-        .footer-links a { color: var(--fg3); font-size: 0.85rem; transition: color 0.2s; }
-        .footer-links a:hover { color: var(--accent); text-decoration: none; }
-        .footer-tagline { color: var(--fg3); font-size: 0.8rem; font-style: italic; }
-
         /* ═══════ RESPONSIVE ═══════ */
-        @media (max-width: 1024px) {
-            .mini-demos-grid { grid-template-columns: repeat(3, 1fr); }
-        }
         @media (max-width: 768px) {
             .container { padding: 0 1rem; }
             .nav-toggle { display: flex; }
-            .header-nav {
+            .app-nav {
                 display: none;
                 position: absolute;
                 top: 100%;
@@ -202,227 +179,22 @@
                 gap: 0.75rem;
                 z-index: 100;
             }
-            .header-nav a { font-size: 0.9rem; padding: 0.4rem 0; }
-            .header-nav .gh-btn { align-self: flex-start; }
-            .nav-toggle-cb:checked ~ .header-nav { display: flex; }
-            .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
-            .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(2) { opacity: 0; }
-            .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
-            .site-header .container { position: relative; }
+            .app-nav.open { display: flex; }
+            .app-nav a { font-size: 0.9rem; padding: 0.4rem 0; }
+            .app-header .container { position: relative; }
             .gh-btn { padding: 0.3rem 0.6rem; font-size: 0.7rem; }
-            .page-hero { padding: 90px 0 2rem; }
-            .demo-card { grid-template-columns: 1fr; }
-            .demo-code-panel { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
-            .demo-code-panel pre { font-size: 0.75rem; }
-            .mini-demos-grid { grid-template-columns: repeat(2, 1fr); }
+            .pg-layout { grid-template-columns: 1fr; }
+            .catalog-grid { grid-template-columns: repeat(2, 1fr); }
+            .home-cards { grid-template-columns: 1fr; }
             .form-grid { grid-template-columns: 1fr; }
-            .playground-section { padding: 0 0 2rem; }
             .dnd-container { flex-direction: column; }
         }
         @media (max-width: 480px) {
-            .mini-demos-grid { grid-template-columns: 1fr; }
+            .catalog-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-
-    <!-- ═══════ HEADER ═══════ -->
-    <header class="site-header">
-        <div class="container">
-            <div class="logo">
-                <a href="index.html"><span class="logo-emoji">🔥</span> <span class="gradient-text">Oxide</span></a>
-            </div>
-            <input type="checkbox" id="nav-toggle" class="nav-toggle-cb">
-            <label for="nav-toggle" class="nav-toggle" aria-label="Menu">
-                <span></span><span></span><span></span>
-            </label>
-            <nav class="header-nav">
-                <a href="index.html#features">Features</a>
-                <a href="index.html#cli">CLI</a>
-                <a href="index.html#benchmarks">Benchmarks</a>
-                <a href="playground.html" class="active">Playground</a>
-                <a href="docs.html">Docs</a>
-                <a href="https://github.com/IEvangelist/Oxide" target="_blank" rel="noopener" class="gh-btn">
-                    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-                    GitHub
-                </a>
-            </nav>
-        </div>
-    </header>
-
-    <!-- ═══════ PAGE HERO ═══════ -->
-    <section class="page-hero">
-        <div class="container">
-            <div class="section-label fade-in">Interactive Playground</div>
-            <h1 class="fade-in d1">Every demo runs in<br><span class="gradient-text">Rust → WebAssembly</span></h1>
-            <p class="fade-in d2">18 interactive demos. Zero JavaScript. Click, type, drag — it's all Rust compiled to WASM running in your browser.</p>
-        </div>
-    </section>
-
-    <!-- ═══════ FEATURED DEMOS ═══════ -->
-    <section class="playground-section">
-        <div class="container">
-            <div class="demo-featured">
-                <!-- Counter -->
-                <div class="demo-card fade-in d3">
-                    <div class="demo-code-panel">
-                        <div class="demo-code-title">Counter — Source</div>
-<pre><span class="kw">let mut</span> count = <span class="fn">signal</span>(<span class="num">0</span>);
-
-<span class="fn">view!</span> {
-    &lt;<span class="tag-name">div</span>&gt;
-        &lt;<span class="tag-name">p</span> <span class="attr">class</span>=<span class="str">"big-num"</span>&gt;{count}&lt;/<span class="tag-name">p</span>&gt;
-        &lt;<span class="tag-name">div</span> <span class="attr">class</span>=<span class="str">"row"</span>&gt;
-            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count -= <span class="num">1</span>}&gt;<span class="str">"−"</span>&lt;/<span class="tag-name">button</span>&gt;
-            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count.<span class="fn">set</span>(<span class="num">0</span>)}&gt;<span class="str">"Reset"</span>&lt;/<span class="tag-name">button</span>&gt;
-            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count += <span class="num">1</span>}&gt;<span class="str">"+"</span>&lt;/<span class="tag-name">button</span>&gt;
-        &lt;/<span class="tag-name">div</span>&gt;
-    &lt;/<span class="tag-name">div</span>&gt;
-}</pre>
-                    </div>
-                    <div class="demo-live-panel">
-                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
-                        <div id="demo-counter-live"></div>
-                    </div>
-                </div>
-
-                <!-- Todo -->
-                <div class="demo-card fade-in d3">
-                    <div class="demo-code-panel">
-                        <div class="demo-code-title">Todo List — Source</div>
-<pre><span class="kw">let</span> todos = <span class="fn">signal</span>(<span class="fn">vec!</span>[...]);
-<span class="kw">let</span> input = <span class="fn">signal</span>(<span class="type">String</span>::<span class="fn">new</span>());
-
-<span class="fn">view!</span> {
-    &lt;<span class="tag-name">input</span> <span class="attr">bind:value</span>={input} /&gt;
-    &lt;<span class="tag-name">ul</span>&gt;
-        {<span class="kw">for</span> (text, done) <span class="kw">in</span> todos.<span class="fn">get</span>() {
-            &lt;<span class="tag-name">li</span> <span class="attr">class:done</span>={done}&gt;{text}&lt;/<span class="tag-name">li</span>&gt;
-        }}
-    &lt;/<span class="tag-name">ul</span>&gt;
-}</pre>
-                    </div>
-                    <div class="demo-live-panel">
-                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
-                        <div id="demo-todo-live"></div>
-                    </div>
-                </div>
-
-                <!-- Forms -->
-                <div class="demo-card fade-in d3">
-                    <div class="demo-code-panel">
-                        <div class="demo-code-title">Form Binding — Source</div>
-<pre><span class="kw">let</span> name = <span class="fn">signal</span>(<span class="type">String</span>::<span class="fn">new</span>());
-<span class="kw">let</span> subscribed = <span class="fn">signal</span>(<span class="num">false</span>);
-
-<span class="fn">view!</span> {
-    &lt;<span class="tag-name">input</span> <span class="attr">bind:value</span>={name} /&gt;
-    &lt;<span class="tag-name">input</span> <span class="attr">type</span>=<span class="str">"checkbox"</span>
-        <span class="attr">bind:checked</span>={subscribed} /&gt;
-    &lt;<span class="tag-name">p</span>&gt;{name} {subscribed}&lt;/<span class="tag-name">p</span>&gt;
-}</pre>
-                    </div>
-                    <div class="demo-live-panel">
-                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
-                        <div id="demo-forms-live"></div>
-                    </div>
-                </div>
-
-                <!-- Fetch -->
-                <div class="demo-card fade-in d3">
-                    <div class="demo-code-panel">
-                        <div class="demo-code-title">Fetch API — Source</div>
-<pre><span class="kw">let</span> data = <span class="fn">signal</span>(<span class="str">"Click to fetch"</span>);
-
-<span class="fn">spawn_local</span>(<span class="kw">async</span> {
-    <span class="kw">let</span> text = <span class="fn">fetch</span>(<span class="str">"https://api..."</span>)
-        .<span class="kw">await</span>.<span class="fn">unwrap</span>();
-    data.<span class="fn">set</span>(text);
-});
-
-<span class="fn">view!</span> {
-    &lt;<span class="tag-name">div</span>&gt;{data}&lt;/<span class="tag-name">div</span>&gt;
-}</pre>
-                    </div>
-                    <div class="demo-live-panel">
-                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
-                        <div id="demo-fetch-live"></div>
-                    </div>
-                </div>
-
-                <!-- Canvas -->
-                <div class="demo-card fade-in d3">
-                    <div class="demo-code-panel">
-                        <div class="demo-code-title">Canvas Drawing — Source</div>
-<pre><span class="kw">let</span> canvas: <span class="type">HtmlCanvasElement</span> = ...;
-<span class="kw">let</span> ctx = canvas.<span class="fn">get_context</span>(<span class="str">"2d"</span>);
-
-<span class="cmt">// on:mousedown → ctx.begin_path()</span>
-<span class="cmt">// on:mousemove → ctx.line_to(x, y)</span>
-<span class="cmt">// on:mouseup   → stop drawing</span></pre>
-                    </div>
-                    <div class="demo-live-panel">
-                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
-                        <div id="demo-canvas-live"></div>
-                    </div>
-                </div>
-
-                <!-- Chart -->
-                <div class="demo-card fade-in d3">
-                    <div class="demo-code-panel">
-                        <div class="demo-code-title">SVG Chart — Source</div>
-<pre><span class="kw">let</span> data = <span class="fn">signal</span>(<span class="fn">vec!</span>[<span class="num">65</span>, <span class="num">40</span>, <span class="num">80</span>, <span class="num">55</span>, <span class="num">90</span>]);
-
-<span class="fn">view!</span> {
-    &lt;<span class="tag-name">svg</span> <span class="attr">viewBox</span>=<span class="str">"0 0 700 220"</span>&gt;
-        {<span class="kw">for</span> (i, val) <span class="kw">in</span> data.<span class="fn">get</span>().<span class="fn">enumerate</span>() {
-            &lt;<span class="tag-name">rect</span> <span class="attr">x</span>={...} <span class="attr">height</span>={val} /&gt;
-        }}
-    &lt;/<span class="tag-name">svg</span>&gt;
-}</pre>
-                    </div>
-                    <div class="demo-live-panel">
-                        <div class="demo-live-title"><span class="live-dot"></span> Live Demo</div>
-                        <div id="demo-chart-live"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══════ MINI DEMOS ═══════ -->
-            <div class="more-demos-heading fade-in">
-                <h3>More Demos</h3>
-                <p>All running in Rust → WebAssembly. Click around and explore.</p>
-            </div>
-            <div class="mini-demos-grid">
-                <div class="mini-demo-card fade-in d1"><div class="mini-demo-label">🌡️ Temperature</div><div id="demo-temperature-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d2"><div class="mini-demo-label">⏱️ Stopwatch</div><div id="demo-stopwatch-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d3"><div class="mini-demo-label">🖱️ Mouse Tracker</div><div id="demo-mouse-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d4"><div class="mini-demo-label">⌨️ Keyboard</div><div id="demo-keyboard-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d5"><div class="mini-demo-label">🎨 Theme Toggle</div><div id="demo-theme-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d6"><div class="mini-demo-label">📝 Notes</div><div id="demo-notes-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d7"><div class="mini-demo-label">🎬 Animation</div><div id="demo-animation-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d8"><div class="mini-demo-label">🪟 Modal</div><div id="demo-modal-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d7"><div class="mini-demo-label">🫳 Drag &amp; Drop</div><div id="demo-dnd-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d8"><div class="mini-demo-label">📋 Clipboard</div><div id="demo-clipboard-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d7"><div class="mini-demo-label">📡 Telemetry</div><div id="demo-telemetry-live" class="mini-demo"></div></div>
-                <div class="mini-demo-card fade-in d8"><div class="mini-demo-label">🛡️ Resiliency</div><div id="demo-resiliency-live" class="mini-demo"></div></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ═══════ FOOTER ═══════ -->
-    <footer class="site-footer">
-        <div class="container">
-            <div class="footer-brand">Built with 🔥 by the Oxide community</div>
-            <div class="footer-links">
-                <a href="index.html">Home</a>
-                <a href="docs.html">Docs</a>
-                <a href="https://github.com/IEvangelist/Oxide" target="_blank" rel="noopener">GitHub</a>
-            </div>
-            <div class="footer-tagline">Rust + WebAssembly = The Future of the Web</div>
-        </div>
-    </footer>
-
     <div id="app"></div>
     <script type="module">
         import init from './pkg/oxide_showcase.js';
