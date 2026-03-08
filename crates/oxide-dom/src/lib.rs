@@ -1,7 +1,10 @@
+mod hooks;
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 pub use web_sys::Event;
+pub use hooks::*;
 
 /// Get the global `document`.
 fn document() -> web_sys::Document {

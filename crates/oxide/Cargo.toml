@@ -11,6 +11,7 @@ oxide-macros = { path = "../oxide-macros" }
 oxide-dom = { path = "../oxide-dom" }
 oxide-telemetry = { path = "../oxide-telemetry" }
 oxide-resiliency = { path = "../oxide-resiliency" }
+oxide-router = { path = "../oxide-router" }
 wasm-bindgen = "0.2"
 
 [dependencies.web-sys]

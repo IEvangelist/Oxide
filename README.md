@@ -116,8 +116,8 @@ view! {
 
 ```rust
 let count = signal(0);           // Create a signal
-let val = count.get();            // Read (auto-tracks in effects)
-count.set(5);                     // Write (notifies subscribers)
+let val = count.get();           // Read (auto-tracks in effects)
+count.set(5);                    // Write (notifies subscribers)
 count.update(|n| *n += 1);       // Mutate in-place
 
 let doubled = memo(move || count.get() * 2);  // Derived signal

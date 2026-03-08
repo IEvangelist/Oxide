@@ -1,6 +1,7 @@
 /// Re-exports from `oxide-core` — reactive primitives.
 pub use oxide_core::{batch, create_effect, memo, provide_context, signal, untrack, use_context, Signal};
 pub use oxide_core::{set_hook, clear_hook, HookEvent};
+pub use oxide_core::{watch, on_mount, on_cleanup};
 
 /// Re-exports from `oxide-macros` — the `view!` macro.
 pub use oxide_macros::view;
@@ -8,6 +9,11 @@ pub use oxide_macros::view;
 /// DOM renderer utilities.
 pub mod dom {
     pub use oxide_dom::*;
+}
+
+/// Client-side router.
+pub mod router {
+    pub use oxide_router::*;
 }
 
 /// OpenTelemetry-compatible tracing.
