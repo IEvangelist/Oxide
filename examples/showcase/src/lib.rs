@@ -37,6 +37,9 @@ pub fn main() {
             container.append_child(&builder()).ok();
         }
     }
+
+    // Scroll-to-top button on every page
+    body().append_child(&oxide::components::scroll_to_top(300)).ok();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

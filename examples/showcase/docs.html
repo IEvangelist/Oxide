@@ -683,9 +683,14 @@ count.<span class="fn">update</span>(|n| *n += <span class="num">1</span>); <spa
 <pre><span class="fn">skeleton</span>(<span class="str">"100%"</span>, <span class="str">"20px"</span>)</pre>
             </div>
         </div>
-    </section>
 
-    <!-- ═══════ 10 · TIMERS ═══════ -->
+            <h3>Scroll to Top</h3>
+            <p>Floating button that appears after scrolling down. Smooth-scrolls back to the top on click.</p>
+            <div class="code-block">
+<pre><span class="cmt">// Add to your app — positions fixed bottom-right</span>
+<span class="fn">scroll_to_top</span>(<span class="num">300</span>)  <span class="cmt">// appears after scrolling 300px</span></pre>
+            </div>
+    </section>
     <section id="timers" class="doc-section">
         <div class="container">
             <h2 class="fade-in">10. Timers</h2>
@@ -919,5 +924,9 @@ breaker.<span class="fn">reset</span>(); <span class="cmt">// force back to Clos
             <div class="footer-tagline">Rust + WebAssembly = The Future of the Web</div>
         </div>
     </footer>
+    <script type="module">
+        import init from './pkg/oxide_showcase.js';
+        init();
+    </script>
 </body>
 </html>

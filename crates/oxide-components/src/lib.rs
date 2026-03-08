@@ -657,3 +657,49 @@ const SKELETON_CSS: &str = "\
 .ox-skeleton{background:linear-gradient(90deg,#1e1e1e 25%,#2a2a2a 50%,#1e1e1e 75%);\
 background-size:200% 100%;animation:ox-shimmer 1.5s infinite;border-radius:6px}\
 @keyframes ox-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 15. Scroll to Top
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// A floating "scroll to top" button that appears after scrolling down.
+/// Shows after scrolling past `threshold_px` (default 300).
+///
+/// ```ignore
+/// // Add to your app — it positions itself fixed in the bottom-right corner
+/// append_node(&body, &scroll_to_top(300));
+/// ```
+pub fn scroll_to_top(threshold_px: i32) -> web_sys::Element {
+    inject_css("scroll-top", SCROLL_TOP_CSS);
+    let btn = create_element("button");
+    set_attribute(&btn, "class", "ox-scroll-top");
+    btn.set_attribute("aria-label", "Scroll to top").ok();
+    set_inner_html(&btn, "&#8679;"); // ⇧ arrow
+    set_style(&btn, "display", "none");
+
+    // Show/hide based on scroll position
+    let btn_ref = btn.clone();
+    on_window_event("scroll", move |_| {
+        let y = web_sys::window().unwrap().scroll_y().unwrap_or(0.0);
+        if y > threshold_px as f64 {
+            set_style(&btn_ref, "display", "flex");
+        } else {
+            set_style(&btn_ref, "display", "none");
+        }
+    });
+
+    // Scroll to top on click
+    add_event_listener(&btn, "click", move |_| {
+        web_sys::window().unwrap().scroll_to_with_x_and_y(0.0, 0.0);
+    });
+
+    btn
+}
+
+const SCROLL_TOP_CSS: &str = "\
+.ox-scroll-top{position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;\
+background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border:none;border-radius:50%;\
+font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;\
+box-shadow:0 4px 16px rgba(249,115,22,.35);transition:all .2s;z-index:90;opacity:.9}\
+.ox-scroll-top:hover{transform:translateY(-3px);opacity:1;box-shadow:0 6px 20px rgba(249,115,22,.5)}\
+.ox-scroll-top:active{transform:translateY(0)}";
