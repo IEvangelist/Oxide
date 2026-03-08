@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Docs — Oxide</title>
+    <meta name="description" content="Documentation for Oxide: quick start, CLI reference, debugging, observability, and resiliency patterns." />
+    <style>
+        /* ═══════ RESET & CSS VARIABLES ═══════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0a; --bg2: #141414; --bg3: #1e1e1e;
+            --fg: #e0e0e0; --fg2: #888; --fg3: #555;
+            --accent: #f97316; --accent2: #ef4444;
+            --green: #22c55e; --blue: #3b82f6; --purple: #a855f7;
+            --radius: 10px; --gap: 1rem;
+            --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+            --glow: rgba(249, 115, 22, 0.15);
+            --max-w: 1200px;
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: var(--font); background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        pre, code { font-family: var(--mono); overflow-x: auto; max-width: 100%; }
+        pre { white-space: pre; word-wrap: normal; }
+        img { max-width: 100%; }
+
+        /* ═══════ UTILITY ═══════ */
+        .container { max-width: var(--max-w); margin: 0 auto; padding: 0 2rem; }
+        .gradient-text { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); font-weight: 600; margin-bottom: 0.5rem; }
+        .section-title { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.75rem; }
+        .section-sub { color: var(--fg2); font-size: 1.05rem; max-width: 600px; line-height: 1.7; }
+
+        /* ═══════ ANIMATIONS ═══════ */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { opacity: 0; animation: fadeUp 0.7s ease-out forwards; }
+        .fade-in.d1 { animation-delay: 0.1s; } .fade-in.d2 { animation-delay: 0.2s; }
+        .fade-in.d3 { animation-delay: 0.3s; } .fade-in.d4 { animation-delay: 0.4s; }
+        .fade-in.d5 { animation-delay: 0.5s; } .fade-in.d6 { animation-delay: 0.6s; }
+
+        /* ═══════ HEADER / NAV ═══════ */
+        .site-header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(10,10,10,0.8); backdrop-filter: blur(16px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .site-header .container { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+        .logo { font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.4rem; }
+        .logo a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.4rem; }
+        .logo-emoji { font-size: 1.4rem; -webkit-text-fill-color: initial; }
+        .header-nav { display: flex; align-items: center; gap: 1.5rem; }
+        .header-nav a { color: var(--fg2); font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
+        .header-nav a:hover { color: var(--fg); text-decoration: none; }
+        .header-nav a.active { color: var(--accent); }
+        .gh-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid var(--fg3); color: var(--fg) !important; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; }
+        .gh-btn:hover { border-color: var(--accent); color: var(--accent) !important; text-decoration: none; }
+        .gh-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        /* ═══════ PAGE HERO ═══════ */
+        .page-hero { padding: 120px 0 4rem; }
+        .page-hero h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 900; line-height: 1.1; margin-bottom: 0.75rem; }
+        .page-hero p { color: var(--fg2); font-size: 1.1rem; max-width: 600px; }
+
+        /* ═══════ DOCS SECTIONS ═══════ */
+        .doc-section { padding: 3rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .doc-section:last-of-type { border-bottom: none; }
+        .doc-section h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .doc-section h3 { font-size: 1.15rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+        .doc-section p { color: var(--fg2); font-size: 0.92rem; line-height: 1.7; margin-bottom: 0.75rem; max-width: 700px; }
+        .doc-section ul, .doc-section ol { color: var(--fg2); font-size: 0.92rem; line-height: 1.7; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .doc-section li { margin-bottom: 0.35rem; }
+
+        /* ═══════ CODE BLOCKS ═══════ */
+        .code-block { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1rem 1.25rem; margin: 0.75rem 0 1.25rem; overflow-x: auto; }
+        .code-block pre { font-size: 0.82rem; line-height: 1.6; color: #c9d1d9; }
+        .code-block .prompt { color: var(--green); }
+        .code-block .file-label { color: var(--fg3); font-size: 0.7rem; margin-bottom: 0.5rem; display: block; }
+        .kw { color: #ff7b72; } .fn { color: #d2a8ff; } .str { color: #a5d6ff; } .num { color: #79c0ff; }
+        .cmt { color: #8b949e; } .type { color: #ffa657; } .tag-name { color: #7ee787; }
+        .attr { color: #79c0ff; } .punct { color: #8b949e; }
+
+        /* ═══════ STEPS ═══════ */
+        .steps { display: flex; flex-direction: column; gap: 2rem; margin-top: 2rem; }
+        .step { display: grid; grid-template-columns: 48px 1fr; gap: 1.25rem; align-items: start; }
+        .step-num { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0; }
+        .step-body h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+
+        /* ═══════ CLI TABLE ═══════ */
+        .table-wrap { overflow-x: auto; margin: 1rem 0; }
+        .cli-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .cli-table th { padding: 0.7rem 1rem; text-align: left; border-bottom: 2px solid rgba(255,255,255,0.1); font-weight: 700; color: var(--fg); }
+        .cli-table td { padding: 0.6rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--fg2); }
+        .cli-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .cli-table code { background: rgba(255,255,255,0.05); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.82rem; color: var(--accent); }
+
+        /* ═══════ TUTORIALS ═══════ */
+        .tutorials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+        .tutorial-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 2rem; transition: all 0.3s; }
+        .tutorial-card:hover { border-color: rgba(249,115,22,0.2); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+        .tutorial-icon { font-size: 2rem; margin-bottom: 1rem; }
+        .tutorial-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .tutorial-card p { color: var(--fg2); font-size: 0.88rem; line-height: 1.6; }
+        .tutorial-tag { display: inline-block; margin-top: 1rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; border: 1px solid rgba(249,115,22,0.3); color: var(--accent); }
+
+        /* ═══════ FOOTER ═══════ */
+        .site-footer { padding: 4rem 0 3rem; border-top: 1px solid rgba(255,255,255,0.04); text-align: center; }
+        .footer-brand { font-size: 1rem; color: var(--fg2); margin-bottom: 1rem; }
+        .footer-links { display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; }
+        .footer-links a { color: var(--fg3); font-size: 0.85rem; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--accent); text-decoration: none; }
+        .footer-tagline { color: var(--fg3); font-size: 0.8rem; font-style: italic; }
+
+        /* ═══════ RESPONSIVE ═══════ */
+        @media (max-width: 768px) {
+            .container { padding: 0 1rem; }
+            .header-nav { gap: 0.75rem; }
+            .header-nav a { font-size: 0.72rem; }
+            .gh-btn { padding: 0.3rem 0.6rem; font-size: 0.7rem; }
+            .page-hero { padding: 90px 0 2rem; }
+            .doc-section { padding: 2rem 0; }
+            .step { grid-template-columns: 40px 1fr; }
+            .step-num { width: 40px; height: 40px; font-size: 0.95rem; }
+            .tutorials-grid { grid-template-columns: 1fr; }
+            .code-block pre { font-size: 0.75rem; }
+            .code-block { padding: 0.75rem 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════ HEADER ═══════ -->
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">
+                <a href="index.html"><span class="logo-emoji">🔥</span> <span class="gradient-text">Oxide</span></a>
+            </div>
+            <nav class="header-nav">
+                <a href="index.html#features">Features</a>
+                <a href="index.html#cli">CLI</a>
+                <a href="index.html#benchmarks">Benchmarks</a>
+                <a href="playground.html">Playground</a>
+                <a href="docs.html" class="active">Docs</a>
+                <a href="https://github.com/IEvangelist/Oxide" target="_blank" rel="noopener" class="gh-btn">
+                    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ═══════ PAGE HERO ═══════ -->
+    <section class="page-hero">
+        <div class="container">
+            <div class="section-label fade-in">Documentation</div>
+            <h1 class="fade-in d1">Build &amp; ship with <span class="gradient-text">Oxide</span></h1>
+            <p class="fade-in d2">Everything you need: quick start, CLI reference, debugging, observability, and production patterns.</p>
+        </div>
+    </section>
+
+    <!-- ═══════ QUICK START ═══════ -->
+    <section class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">Quick Start</h2>
+            <p class="fade-in d1">From zero to a running Oxide app in five steps.</p>
+            <div class="steps">
+                <div class="step fade-in d2">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <h3>Install Rust &amp; WASM Toolchain</h3>
+                        <div class="code-block">
+<pre><span class="prompt">$</span> curl --proto <span class="str">'=https'</span> --tlsv1.2 -sSf https://sh.rustup.rs | sh
+<span class="prompt">$</span> rustup target add wasm32-unknown-unknown
+<span class="prompt">$</span> cargo install wasm-pack</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="step fade-in d3">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
+                        <h3>Create Your Project</h3>
+                        <div class="code-block">
+<pre><span class="prompt">$</span> cargo new --lib my-app
+<span class="prompt">$</span> cd my-app</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="step fade-in d4">
+                    <div class="step-num">3</div>
+                    <div class="step-body">
+                        <h3>Add Dependencies</h3>
+                        <div class="code-block">
+                            <span class="file-label">Cargo.toml</span>
+<pre>[<span class="attr">lib</span>]
+<span class="attr">crate-type</span> = [<span class="str">"cdylib"</span>]
+
+[<span class="attr">dependencies</span>]
+<span class="attr">oxide</span> = { <span class="attr">git</span> = <span class="str">"https://github.com/IEvangelist/Oxide"</span> }
+<span class="attr">wasm-bindgen</span> = <span class="str">"0.2"</span></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="step fade-in d5">
+                    <div class="step-num">4</div>
+                    <div class="step-body">
+                        <h3>Write Your App</h3>
+                        <div class="code-block">
+                            <span class="file-label">src/lib.rs</span>
+<pre><span class="kw">use</span> oxide::prelude::*;
+<span class="kw">use</span> wasm_bindgen::prelude::*;
+
+<span class="attr">#[wasm_bindgen(start)]</span>
+<span class="kw">pub fn</span> <span class="fn">main</span>() {
+    <span class="fn">mount</span>(<span class="str">"#app"</span>, || {
+        <span class="kw">let mut</span> count = <span class="fn">signal</span>(<span class="num">0</span>);
+        <span class="fn">view!</span> {
+            &lt;<span class="tag-name">button</span> <span class="attr">on:click</span>={<span class="kw">move</span> |_| count += <span class="num">1</span>}&gt;
+                <span class="str">"Clicks: "</span> {count}
+            &lt;/<span class="tag-name">button</span>&gt;
+        }
+    });
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="step fade-in d6">
+                    <div class="step-num">5</div>
+                    <div class="step-body">
+                        <h3>Build &amp; Run</h3>
+                        <div class="code-block">
+<pre><span class="prompt">$</span> wasm-pack build --target web
+<span class="prompt">$</span> python -m http.server <span class="num">8080</span></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ CLI REFERENCE ═══════ -->
+    <section class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">CLI Reference</h2>
+            <p class="fade-in d1">The <code>oxide</code> CLI handles project scaffolding, development, and production builds.</p>
+            <div class="table-wrap fade-in d2">
+                <table class="cli-table">
+                    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>oxide new &lt;name&gt;</code></td><td>Scaffold a new Oxide project with default template, dependencies, and wasm32 target configured.</td></tr>
+                        <tr><td><code>oxide dev</code></td><td>Start dev server with live reload, WASM compilation, and DWARF debug info for Chrome DevTools.</td></tr>
+                        <tr><td><code>oxide build</code></td><td>Production build with release optimizations, wasm-opt, and gzip-ready output.</td></tr>
+                        <tr><td><code>oxide serve</code></td><td>Serve the built site from the <code>dist/</code> directory on a local HTTP server.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ DEBUGGING GUIDE ═══════ -->
+    <section class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">Debugging Guide</h2>
+            <p class="fade-in d1">Debug your Oxide app with full Rust source-level debugging in Chrome.</p>
+            <ol class="fade-in d2">
+                <li>Build with <code>oxide dev</code> — this enables debug mode and embeds DWARF debug info in the WASM binary.</li>
+                <li>Open your app in Chrome and open DevTools (F12).</li>
+                <li>Install the <strong>"C/C++ DevTools Support (DWARF)"</strong> Chrome extension.</li>
+                <li>Go to <strong>Sources</strong> tab — you'll see your Rust source files listed.</li>
+                <li>Set breakpoints directly in your <code>.rs</code> files. Step through code, inspect variables, view the call stack.</li>
+            </ol>
+            <div class="code-block fade-in d3">
+<pre><span class="cmt"># Build with debug info</span>
+<span class="prompt">$</span> oxide dev
+
+<span class="cmt"># Chrome will show Rust sources under:</span>
+<span class="cmt"># Sources → file:// → src/lib.rs</span>
+<span class="cmt"># Set breakpoints, step in/out, inspect locals</span></pre>
+            </div>
+            <p class="fade-in d4">For production, <code>oxide build</code> strips all debug info and runs <code>wasm-opt -Oz</code> for the smallest possible binary.</p>
+        </div>
+    </section>
+
+    <!-- ═══════ OPENTELEMETRY ═══════ -->
+    <section class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">OpenTelemetry Setup</h2>
+            <p class="fade-in d1">Built-in observability. Traces are automatically emitted for signals, effects, and fetch calls.</p>
+            <div class="code-block fade-in d2">
+                <span class="file-label">src/lib.rs</span>
+<pre><span class="kw">use</span> oxide_telemetry;
+
+<span class="cmt">// Initialize with console output (dev mode)</span>
+oxide_telemetry::<span class="fn">init</span>(<span class="type">Config</span> {
+    service_name: <span class="str">"my-app"</span>,
+    endpoint: <span class="type">None</span>, <span class="cmt">// console mode</span>
+});
+
+<span class="cmt">// Or send to an OTLP collector</span>
+oxide_telemetry::<span class="fn">init</span>(<span class="type">Config</span> {
+    service_name: <span class="str">"my-app"</span>,
+    endpoint: <span class="type">Some</span>(<span class="str">"http://localhost:4317"</span>),
+});
+
+<span class="cmt">// All signals, effects, and fetches are now traced automatically.</span>
+<span class="cmt">// W3C trace context is propagated across fetch calls.</span></pre>
+            </div>
+            <p class="fade-in d3">When no endpoint is configured, tracing has <strong>zero runtime overhead</strong> — the compiler eliminates all instrumentation code.</p>
+        </div>
+    </section>
+
+    <!-- ═══════ RESILIENCY ═══════ -->
+    <section class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">Resiliency Patterns</h2>
+            <p class="fade-in d1">Production-grade fault tolerance built into the framework.</p>
+
+            <h3 class="fade-in d2">Error Boundary</h3>
+            <div class="code-block fade-in d2">
+<pre><span class="fn">view!</span> {
+    &lt;<span class="type">ErrorBoundary</span> <span class="attr">fallback</span>={|err| <span class="fn">view!</span> {
+        &lt;<span class="tag-name">p</span> <span class="attr">class</span>=<span class="str">"error"</span>&gt;<span class="str">"Something went wrong: "</span> {err}&lt;/<span class="tag-name">p</span>&gt;
+    }}&gt;
+        &lt;<span class="type">MyComponent</span> /&gt;
+    &lt;/<span class="type">ErrorBoundary</span>&gt;
+}</pre>
+            </div>
+
+            <h3 class="fade-in d3">Retry with Backoff</h3>
+            <div class="code-block fade-in d3">
+<pre><span class="kw">use</span> oxide_resiliency::<span class="fn">retry</span>;
+
+<span class="kw">let</span> data = <span class="fn">retry</span>(<span class="type">RetryConfig</span> {
+    max_attempts: <span class="num">3</span>,
+    backoff: <span class="type">Backoff</span>::<span class="fn">Exponential</span> { base_ms: <span class="num">100</span> },
+}, || <span class="kw">async</span> {
+    <span class="fn">fetch_json</span>(<span class="str">"https://api.example.com/data"</span>).<span class="kw">await</span>
+}).<span class="kw">await</span>;</pre>
+            </div>
+
+            <h3 class="fade-in d4">Circuit Breaker</h3>
+            <div class="code-block fade-in d4">
+<pre><span class="kw">use</span> oxide_resiliency::<span class="fn">circuit_breaker</span>;
+
+<span class="kw">let</span> breaker = <span class="fn">circuit_breaker</span>(<span class="type">CircuitConfig</span> {
+    failure_threshold: <span class="num">5</span>,
+    reset_timeout_ms: <span class="num">30_000</span>,
+});
+
+<span class="kw">let</span> result = breaker.<span class="fn">call</span>(|| <span class="kw">async</span> {
+    <span class="fn">fetch_json</span>(<span class="str">"https://api.example.com/data"</span>).<span class="kw">await</span>
+}).<span class="kw">await</span>;</pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ TUTORIALS ═══════ -->
+    <section class="doc-section">
+        <div class="container">
+            <h2 class="fade-in">Tutorials</h2>
+            <p class="fade-in d1">Step-by-step guides to master every part of Oxide.</p>
+            <div class="tutorials-grid">
+                <div class="tutorial-card fade-in d2">
+                    <div class="tutorial-icon">📋</div>
+                    <h3>Build a Todo App</h3>
+                    <p>Learn signals, lists, and localStorage in 50 lines of Rust.</p>
+                    <span class="tutorial-tag">Coming Soon</span>
+                </div>
+                <div class="tutorial-card fade-in d3">
+                    <div class="tutorial-icon">📊</div>
+                    <h3>Build a Dashboard</h3>
+                    <p>Fetch API data, render SVG charts, and add real-time updates.</p>
+                    <span class="tutorial-tag">Coming Soon</span>
+                </div>
+                <div class="tutorial-card fade-in d4">
+                    <div class="tutorial-icon">🎮</div>
+                    <h3>Build a Game</h3>
+                    <p>Canvas rendering, keyboard input, and animation frames in pure Rust.</p>
+                    <span class="tutorial-tag">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ FOOTER ═══════ -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-brand">Built with 🔥 by the Oxide community</div>
+            <div class="footer-links">
+                <a href="index.html">Home</a>
+                <a href="playground.html">Playground</a>
+                <a href="https://github.com/IEvangelist/Oxide" target="_blank" rel="noopener">GitHub</a>
+            </div>
+            <div class="footer-tagline">Rust + WebAssembly = The Future of the Web</div>
+        </div>
+    </footer>
+</body>
+</html>
