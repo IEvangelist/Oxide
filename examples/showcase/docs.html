@@ -169,7 +169,8 @@
                         <div class="code-block">
 <pre><span class="prompt">$</span> curl --proto <span class="str">'=https'</span> --tlsv1.2 -sSf https://sh.rustup.rs | sh
 <span class="prompt">$</span> rustup target add wasm32-unknown-unknown
-<span class="prompt">$</span> cargo install wasm-pack</pre>
+<span class="prompt">$</span> cargo install wasm-pack
+<span class="prompt">$</span> cargo install --git https://github.com/IEvangelist/Oxide oxide-cli</pre>
                         </div>
                     </div>
                 </div>
@@ -240,6 +241,10 @@
         <div class="container">
             <h2 class="fade-in">CLI Reference</h2>
             <p class="fade-in d1">The <code>oxide</code> CLI handles project scaffolding, development, and production builds.</p>
+            <div class="code-block fade-in d1" style="margin: 1rem 0;">
+                <div style="font-size: 0.75rem; color: var(--fg3); margin-bottom: 0.4rem;">Install</div>
+<pre style="background: var(--bg); padding: 0.8rem 1rem; border-radius: 8px; border: 1px solid var(--fg3);"><span class="prompt">$</span> cargo install --git https://github.com/IEvangelist/Oxide oxide-cli</pre>
+            </div>
             <div class="table-wrap fade-in d2">
                 <table class="cli-table">
                     <thead><tr><th>Command</th><th>Description</th></tr></thead>
