@@ -25,4 +25,8 @@ features = [
     "DomTokenList",
     "Event",
     "EventTarget",
+    "FileReader",
+    "FileList",
+    "File",
+    "Blob",
 ]
