@@ -78,6 +78,7 @@ pub fn main() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn build_app_shell(router: Router) -> web_sys::Element {
+    let current_route = router.current();
     let shell = create_element("div");
     set_attribute(&shell, "class", "app-shell");
 
@@ -142,6 +143,7 @@ fn build_app_shell(router: Router) -> web_sys::Element {
         ("Forms", "/forms"),
         ("Tutorials", "/tutorials/login"),
     ];
+    let mut nav_links: Vec<(web_sys::Element, String)> = Vec::new();
     for &(label, path) in nav_items {
         let a = create_element("a");
         append_text(&a, label);
@@ -151,8 +153,26 @@ fn build_app_shell(router: Router) -> web_sys::Element {
             navigate(&p);
             no.set(false);
         });
+        nav_links.push((a.clone(), path.to_string()));
         append_node(&nav, &a);
     }
+
+    // Reactively highlight active nav link
+    create_effect(move || {
+        let route = current_route.get();
+        for (link, path) in &nav_links {
+            let is_active = if *path == "/" {
+                route == "/"
+            } else {
+                route.starts_with(path)
+            };
+            if is_active {
+                link.class_list().add_1("active").ok();
+            } else {
+                link.class_list().remove_1("active").ok();
+            }
+        }
+    });
 
     // Docs link
     let docs_link = create_element("a");
